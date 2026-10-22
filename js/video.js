@@ -17,6 +17,7 @@ const VID_ANGLES = {
   cabeca: { label: 'Cabeça à frente do ombro', pts: ['orelha', 'ombro', 'pe', 'tornozelo'], at: 'orelha', f: (P, s) => Math.atan2((P.orelha.x - P.ombro.x) * vdir(P, s), P.ombro.y - P.orelha.y) * DEG },
 };
 const videoSession = {}; // id → { url, el } (o vídeo não é salvo)
+let vidClock = 0; // o modelo de vídeo exige carimbos de tempo sempre crescentes, inclusive entre análises
 
 function seekVideo(v, t) { return new Promise(r => { const h = () => { v.removeEventListener('seeked', h); r(); }; v.addEventListener('seeked', h); v.currentTime = t; }); }
 function vidPoints(a) { return a.video.angles.reduce((s, k) => { VID_ANGLES[k].pts.forEach(p => s.add(p)); return s; }, new Set()); }
@@ -123,12 +124,12 @@ SCREENS.video = async ({ id }) => {
       $('#prog').textContent = 'Carregando o modelo de IA…';
       try { lm = await withTimeout(model('poseVideo'), 40000); } catch (e) { if (vv.mode === 'ia') throw new Error('não foi possível carregar a IA (' + e.message + ')'); }
       const dur = video.duration, step = 1 / vv.fps, times = [], frames = [];
-      let prev = null, prev2 = null, ts = 0;
+      let prev = null, prev2 = null; const base = vidClock + 1000;
       for (let t = 0; t <= dur - 0.02; t += step) {
         await seekVideo(video, t);
         let P = null;
         if (lm) {
-          ts = Math.max(ts + 1, Math.round(t * 1000));
+          const ts = Math.max(vidClock + 1, base + Math.round(t * 1000)); vidClock = ts;
           const r = lm.detectForVideo(video, ts);
           if (r.landmarks?.length) { P = {}; for (const k of need) { const L = r.landmarks[0][VID_PTS[k][idx]]; P[k] = { x: L.x, y: L.y }; } }
         }
