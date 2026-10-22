@@ -118,6 +118,7 @@ t('classificação postural e exercícios ligados aos achados', () => {
 });
 
 t('todos os tipos de avaliação apontam para vistas existentes', () => {
+  assert(KINDS.postural.views.includes('adamsPost') && KINDS.postural.views.includes('adamsLat'), 'avaliação completa inclui a flexão anterior de tronco');
   for (const k in KINDS) for (const v of KINDS[k].views || []) assert(VIEWS[v], k + '→' + v);
 });
 

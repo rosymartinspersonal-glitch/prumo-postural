@@ -14,7 +14,7 @@ navegador (IndexedDB). Não há servidor nem conta.
 
 | Avaliação | O que mede |
 | --- | --- |
-| Postural completa | 4 vistas: cabeça, ombros, escápulas, pelve, joelhos (ângulo Q e perfil), retropé, rotação dos pés, tórax, CVA, alinhamento; classificação postural de Kendall |
+| Postural completa | 4 vistas em pé (cabeça, ombros, escápulas, pelve, joelhos, retropé, rotação dos pés, tórax, CVA, alinhamento) + flexão anterior de tronco (teste de Adams e flexibilidade); classificação postural de Kendall |
 | Avaliação rápida | Vista anterior + lateral direita |
 | **Flexão anterior de tronco** | Teste de Adams: rotação do tronco (ATR) torácica, toracolombar e lombar, com alerta de encaminhamento a partir de 7°. Flexibilidade: ângulo tronco–coxa, distância dedo–chão em cm, joelhos e curvatura dorsal |
 | Cabeça e pescoço | CVA, inclinação e rotação craniana, ângulo do ombro, índice de anteriorização; frontal com inclinação, desvio e simetria dos ombros |

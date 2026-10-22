@@ -530,7 +530,7 @@ function romView(def) {
 
 /* ---------- tipos de avaliação ---------- */
 const KINDS = {
-  postural: { label: 'Avaliação postural completa', desc: 'Quatro vistas de corpo inteiro com ângulos, desvios e classificação postural.', views: ['front', 'back', 'latD', 'latE'], icon: 'P' },
+  postural: { label: 'Avaliação postural completa', desc: 'Quatro vistas de corpo inteiro e flexão anterior de tronco (teste de Adams e flexibilidade), com ângulos, desvios e classificação postural.', views: ['front', 'back', 'latD', 'latE', 'adamsPost', 'adamsLat'], icon: 'P' },
   rapida: { label: 'Avaliação rápida', desc: 'Vista anterior e lateral direita para uma triagem em poucos minutos.', views: ['front', 'latD'], icon: 'R' },
   adams: { label: 'Flexão anterior de tronco', desc: 'Teste de Adams (rotação do tronco, triagem de escoliose) e flexibilidade da cadeia posterior.', views: ['adamsPost', 'adamsLat'], icon: 'A' },
   cabeca: { label: 'Cabeça e pescoço', desc: 'Ângulo craniovertebral, inclinação da cabeça, ombro anteriorizado e simetria cervical.', views: ['hnLat', 'hnFront'], icon: 'C' },

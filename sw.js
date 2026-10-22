@@ -1,5 +1,5 @@
 // Prumo Postural — service worker: funciona offline depois da primeira visita.
-const VERSION = 'prumo-v2';
+const VERSION = 'prumo-v3';
 const SHELL = ['./', 'index.html', 'js/core.js', 'js/views.js', 'js/detect.js', 'js/draw.js', 'js/content.js', 'js/screens.js', 'js/video.js', 'js/pdf.js', 'js/main.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {

@@ -155,18 +155,13 @@ async function seedExample() {
   await Store.put('patients', { id: pid, name: 'Marina Albuquerque', birth: '1991-04-12', sex: 'F', height: 165, weight: 61, contact: '', complaint: 'Dor cervical no fim do expediente; trabalha 8 h ao computador.', notes: '', example: true, createdAt: todayISO() });
   const shifts = [
     { front: { olhoD: [0, .008], acromioD: [0, .016], eiasD: [0, .007], nariz: [-.012, 0], joelhoD: [.01, 0] }, back: { acromioD: [0, .016], escapD: [0, .014], c7: [.012, 0], calcD: [.012, 0], eipsD: [0, .006] },
-      latD: { tragus: [.032, .004], c7: [-.004, 0], eias: [0, .012], joelho: [-.006, 0] }, latE: { tragus: [-.03, .004], eias: [0, .01] } },
+      latD: { tragus: [.032, .004], c7: [-.004, 0], eias: [0, .012], joelho: [-.006, 0] }, latE: { tragus: [-.03, .004], eias: [0, .01] }, adamsPost: { torD: [0, -.022] } },
     { front: { olhoD: [0, .003], acromioD: [0, .007], eiasD: [0, .004], nariz: [-.004, 0], joelhoD: [.006, 0] }, back: { acromioD: [0, .007], escapD: [0, .006], c7: [.004, 0], calcD: [.008, 0] },
-      latD: { tragus: [.014, .002], eias: [0, .006] }, latE: { tragus: [-.012, .002], eias: [0, .005] } }];
+      latD: { tragus: [.014, .002], eias: [0, .006] }, latE: { tragus: [-.012, .002], eias: [0, .005] }, adamsPost: { torD: [0, -.012] } }];
   const dates = [new Date(Date.now() - 864e5 * 84), new Date(Date.now() - 864e5 * 2)];
   for (let i = 0; i < 2; i++) {
     const views = {};
     for (const vk of KINDS.postural.views) { const P = shiftedTpl(VIEWS[vk], w, h, shifts[i][vk], U); views[vk] = { img: drawMannequin(vk, P, w, h), points: P, mask: false, scale: null }; }
     await Store.put('assessments', { id: uid(), patientId: pid, kind: 'postural', date: dates[i].toISOString(), views, notes: i ? 'Após 12 sessões de fisioterapia e ajuste ergonômico do posto de trabalho.' : '', conclusion: '', example: true, createdAt: dates[i].toISOString() });
   }
-  // flexão anterior de tronco
-  const views = {};
-  const sh = { adamsPost: { torD: [0, -.03] }, adamsLat: {} };
-  for (const vk of ['adamsPost', 'adamsLat']) { const P = shiftedTpl(VIEWS[vk], w, h, sh[vk], w); views[vk] = { img: drawMannequin(vk, P, w, h), points: P, mask: false, scale: null }; }
-  await Store.put('assessments', { id: uid(), patientId: pid, kind: 'adams', date: dates[1].toISOString(), views, notes: '', conclusion: '', example: true, createdAt: dates[1].toISOString() });
 }
