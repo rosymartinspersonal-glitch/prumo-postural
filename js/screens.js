@@ -618,7 +618,7 @@ SCREENS.settings = async () => {
       <div class="row"><button class="btn" id="bk-out">Exportar backup</button><label class="btn" style="cursor:pointer">Restaurar backup<input type="file" accept="application/json,.json" id="bk-in" hidden></label><button class="btn ghost danger" id="ex-rm">Apagar paciente de exemplo</button></div>
       <div class="row"><button class="btn" id="cache">Limpar cache do app</button><button class="btn" id="prefs">Limpar preferências</button><button class="btn" id="persist">Proteger dados contra limpeza automática</button></div>
       <p class="muted" id="bk-info" style="margin:0;font-size:.85rem"></p></div></details>
-    <button class="setitem setbtn" id="go-plans"><span class="sico">★</span><span><b>Conta e assinatura</b><small>${Billing.enforce ? 'Plano atual: ' + esc(PLANS[plan].label) : 'Login, planos Free, Pro e Pro Plus'}</small></span><span aria-hidden="true">›</span></button>
+    <button class="setitem setbtn" id="go-plans"><span class="sico">★</span><span><b>${TEAMRM_CONFIG.showPlans ? 'Conta e assinatura' : 'Conta'}</b><small>${Billing.enforce ? 'Plano atual: ' + esc(PLANS[plan].label) : TEAMRM_CONFIG.showPlans ? 'Login, planos Free, Pro e Pro Plus' : 'Entrar ou criar conta'}</small></span><span aria-hidden="true">›</span></button>
     </div>
     <h2 class="sethead">Avaliação</h2>
     <section class="panel stack"><h2>Protocolos de amplitude de movimento</h2>

@@ -9,6 +9,8 @@ const TEAMRM_CONFIG = {
   supabaseAnonKey: 'sb_publishable_O4GKXFbW689i_9ZHi1h4rQ_nrbin7CZ',   // chave pública (publishable): pode ficar no código
   // false = login funciona, mas nada é cobrado nem bloqueado. Mude para true quando o Stripe estiver configurado.
   billingActive: false,
+  // false = cobrança em espera: a tela mostra só a conta (sem preços nem botões de assinatura).
+  showPlans: false,
   appUrl: 'https://rosymartinspersonal-glitch.github.io/prumo-postural/',
   trialDays: 7,
   // Preços exibidos na tela de planos. Os valores cobrados de verdade são os cadastrados no Stripe:

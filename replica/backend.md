@@ -1,5 +1,7 @@
 # Backend — contas e assinaturas
 
+> **Cobrança em espera (stand by) desde 22/10/2026, por decisão da dona do app.** No ar só o login (Supabase). Em `js/config.js`: `billingActive: false` e `showPlans: false`. O código do Stripe (funções em `supabase/functions` e telas de planos) está guardado e pronto, mas não foi publicado nem configurado. Para retomar: siga `docs/CONFIGURAR-PAGAMENTOS.md` (Partes B a E) e depois mude as duas opções para `true`.
+
 ## Arquitetura
 
 - **App** (GitHub Pages, estático): telas, IA e dados clínicos. Pacientes, fotos, vídeos e avaliações ficam só no IndexedDB do aparelho.

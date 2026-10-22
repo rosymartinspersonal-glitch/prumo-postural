@@ -1,5 +1,7 @@
 # Como ativar os pagamentos do TEAMRM
 
+> **Em espera.** A cobrança não está ativa. A Parte A (Supabase) já foi feita. Retome a partir da Parte B quando decidir cobrar.
+
 Tempo estimado: 40 minutos. Tudo começa em **modo de teste** (nenhum cartão real é cobrado).
 Você vai criar duas contas: **Supabase** (login e assinaturas) e **Stripe** (pagamentos).
 

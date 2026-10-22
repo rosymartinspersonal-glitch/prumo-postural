@@ -36,6 +36,9 @@ function legalDocs() {
 }
 SCREENS.legal = async ({ doc = 'privacy' }) => {
   const D = legalDocs()[doc];
+  // cobrança em espera: omite as seções sobre pagamento
+  const PAY = ['Pagamentos', 'Planos e cobrança', 'Cancelamento e arrependimento', 'Mudanças de preço e de funções'];
+  if (!TEAMRM_CONFIG.showPlans) D.sections = D.sections.filter(([h]) => !PAY.includes(h));
   app.innerHTML = `${back('Ajustes')}<article class="panel legal"><span class="eyebrow">Atualizado em ${D.updated}</span><h1>${esc(D.title)}</h1>
     ${D.sections.map(([h, t]) => `<h2>${esc(h)}</h2><p>${esc(t)}</p>`).join('')}</article>`;
   bindBack('settings');

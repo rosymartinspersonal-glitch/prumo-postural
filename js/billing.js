@@ -84,6 +84,12 @@ SCREENS.plans = async ({ need } = {}) => {
   let tab = need ? Billing.minPlan(need) : (cur === 'free' ? 'proplus' : cur);
   if (tab === 'free') tab = 'pro';
   let choice = 1;
+  const standby = () => {
+    app.innerHTML = `<div class="stack" style="gap:4px"><span class="eyebrow">TEAMRM · Posture & Correction</span><h1>Conta</h1></div>
+      <div class="banner">Todas as funções do app estão liberadas.</div>
+      <section class="panel stack" id="acct"></section>`;
+    drawAccount();
+  };
   const draw = () => {
     const P = PLANS[tab], opts = cfg.prices[tab] || [];
     app.innerHTML = `<div class="plantabs" role="tablist">${Object.keys(PLANS).map(k => `<button role="tab" data-t="${k}" aria-selected="${k === tab}">${PLANS[k].label}</button>`).join('')}</div>
@@ -114,10 +120,10 @@ SCREENS.plans = async ({ need } = {}) => {
     const box = $('#acct');
     if (!Billing.enabled) { box.innerHTML = '<h2>Conta</h2><p class="muted" style="margin:0">As contas de usuário serão ativadas junto com os pagamentos.</p>'; return; }
     if (u) {
-      box.innerHTML = `<h2>Sua conta</h2><p style="margin:0">${esc(u.email)} · plano <b>${esc(PLANS[cur].label)}</b>${sub?.current_period_end && cur !== 'free' ? ` · ${sub.cancel_at_period_end ? 'termina' : 'renova'} em ${fmtDate(sub.current_period_end)}` : ''}${sub?.status === 'past_due' ? ' · <span class="st bad">pagamento pendente</span>' : ''}</p>
-        <div class="row"><button class="btn" id="restore">Restaurar compras</button>${sub?.stripe_customer_id ? '<button class="btn" id="portal2">Faturas e cartão</button>' : ''}<button class="btn" id="out">Sair</button><button class="btn ghost" id="outall">Sair de todos os aparelhos</button></div>
-        <details><summary class="muted">Excluir minha conta</summary><p class="muted" style="font-size:.9rem">Cancela a assinatura imediatamente e apaga sua conta do servidor. Os pacientes guardados neste aparelho não são afetados.</p><button class="btn danger" id="delacc">Excluir conta</button></details>`;
-      $('#restore').onclick = async () => { Billing.clearCache(); const p = await Billing.plan(true); toast('Plano atualizado: ' + PLANS[p].label); go('plans'); };
+      box.innerHTML = `<h2>Sua conta</h2><p style="margin:0">${esc(u.email)}${cfg.showPlans ? ` · plano <b>${esc(PLANS[cur].label)}</b>` : ''}${sub?.current_period_end && cur !== 'free' ? ` · ${sub.cancel_at_period_end ? 'termina' : 'renova'} em ${fmtDate(sub.current_period_end)}` : ''}${sub?.status === 'past_due' ? ' · <span class="st bad">pagamento pendente</span>' : ''}</p>
+        <div class="row">${cfg.showPlans ? '<button class="btn" id="restore">Restaurar compras</button>' : ''}${sub?.stripe_customer_id ? '<button class="btn" id="portal2">Faturas e cartão</button>' : ''}<button class="btn" id="out">Sair</button><button class="btn ghost" id="outall">Sair de todos os aparelhos</button></div>
+        <details><summary class="muted">Excluir minha conta</summary><p class="muted" style="font-size:.9rem">Apaga sua conta do servidor (e cancela a assinatura, se houver). Os pacientes guardados neste aparelho não são afetados.</p><button class="btn danger" id="delacc">Excluir conta</button></details>`;
+      const rs = $('#restore'); if (rs) rs.onclick = async () => { Billing.clearCache(); const p = await Billing.plan(true); toast('Plano atualizado: ' + PLANS[p].label); go('plans'); };
       const p2 = $('#portal2'); if (p2) p2.onclick = () => Billing.portal().catch(e => toast(e.message));
       $('#out').onclick = async () => { await Billing.signOut(false); toast('Você saiu'); go('plans'); };
       $('#outall').onclick = async () => { await Billing.signOut(true); toast('Você saiu de todos os aparelhos'); go('plans'); };
@@ -141,5 +147,5 @@ SCREENS.plans = async ({ need } = {}) => {
       });
     }
   };
-  draw();
+  if (!cfg.showPlans) standby(); else draw();
 };

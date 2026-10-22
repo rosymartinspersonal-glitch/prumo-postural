@@ -4,6 +4,7 @@
   for (const [id, name] of [['go-home', 'home'], ['nav-home', 'home'], ['nav-patients', 'patients'], ['nav-results', 'results_db'], ['nav-settings', 'settings'], ['nav-plans', 'plans']]) {
     const b = document.getElementById(id); if (b) b.onclick = () => go(name);
   }
+  if (TEAMRM_CONFIG.showPlans) { const l = document.getElementById('nav-plans-label'); if (l) l.textContent = 'Planos'; }
   await Store.open();
   const S = await getSettings();
   // migração para a identidade TEAMRM (quem usava as cores antigas padrão)
