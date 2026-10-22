@@ -24,12 +24,13 @@ const initials = n => (n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w 
 /* ---------- armazenamento (IndexedDB, com memória como reserva) ---------- */
 const Store = (() => {
   let db = null;
-  const mem = { patients: new Map(), assessments: new Map(), settings: new Map() };
+  const STORES = ['patients', 'assessments', 'settings', 'media', 'workouts'];
+  const mem = Object.fromEntries(STORES.map(k => [k, new Map()]));
   function open() {
     return new Promise(res => {
       try {
-        const r = indexedDB.open('prumo', 1);
-        r.onupgradeneeded = () => { const d = r.result; for (const s of ['patients', 'assessments', 'settings']) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' }); };
+        const r = indexedDB.open('prumo', 2);   // nome interno mantido para não perder dados
+        r.onupgradeneeded = () => { const d = r.result; for (const s of STORES) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' }); };
         r.onsuccess = () => { db = r.result; res(); };
         r.onerror = () => res();
         r.onblocked = () => res();
@@ -52,9 +53,15 @@ const Store = (() => {
   };
 })();
 
+const APP_VERSION = '3.0.0';
+let UNITS = 'metric';
+const cmOut = cm => UNITS === 'imperial' ? cm / 2.54 : cm;
+const cmUnit = () => UNITS === 'imperial' ? 'pol' : 'cm';
+const kgOut = kg => UNITS === 'imperial' ? kg * 2.20462 : kg;
+const kgUnit = () => UNITS === 'imperial' ? 'lb' : 'kg';
 const DEFAULT_SETTINGS = {
   id: 'main', clinic: '', professional: '', registry: '', contact: '', logo: '', lineColor: '#FF2D8A', seeded: false,
-  palette: 'teamrm', theme: 'auto', pdfColor: '#0D0D0D', brandV: 2, pdfSubtitle: '', pdfExplain: true, pdfExercises: true, protocols: []
+  palette: 'teamrm', theme: 'auto', units: 'metric', pdfColor: '#0D0D0D', brandV: 2, pdfSubtitle: '', pdfExplain: true, pdfExercises: true, protocols: []
 };
 async function getSettings() { return { ...DEFAULT_SETTINGS, ...(await Store.get('settings', 'main') || {}) }; }
 
@@ -87,7 +94,7 @@ function M(key, label, score, o) {
 }
 function fmtM(m) {
   if (m.unit === '°') return nf(m.v) + '°';
-  if (m.unit === 'cm') return nf(m.v) + ' cm';
+  if (m.unit === 'cm') return nf(cmOut(m.v)) + ' ' + cmUnit();
   if (m.unit === '%') return nf(m.v) + '%';
   if (m.unit === 'x') return nf(m.v, 3);
   return nf(m.v);

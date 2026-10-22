@@ -26,6 +26,9 @@ const THEME_ICON = {
   light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
   dark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>' };
 const THEME_LABEL = { auto: 'Tema automático (segue o aparelho)', light: 'Tema claro', dark: 'Tema escuro' };
+function applyUnits(S) { UNITS = S.units === 'imperial' ? 'imperial' : 'metric'; }
+function copyText(t) { const done = () => toast('Copiado'); try { navigator.clipboard.writeText(t).then(done, () => fallbackCopy(t)); } catch (e) { fallbackCopy(t); } }
+function fallbackCopy(t) { const ta = document.createElement('textarea'); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); toast('Copiado'); } catch (e) { toast('Selecione e copie o texto manualmente'); } ta.remove(); }
 function applyPalette(S) {
   const r = document.documentElement, pal = S.palette || 'teamrm', th = S.theme || 'auto';
   if (pal === 'teamrm') delete r.dataset.palette; else r.dataset.palette = pal;
@@ -37,11 +40,12 @@ function applyPalette(S) {
 
 /* ---------- navegação ---------- */
 let cleanup = null;
-const NAV = { patients: 'nav-patients', exercises: 'nav-ex', help: 'nav-help', settings: 'nav-settings' };
+const NAV = { home: 'nav-home', patients: 'nav-patients', results: 'nav-results', settings: 'nav-settings', plans: 'nav-plans' };
+const SECTION = { home: 'home', exercises: 'home', exercise: 'home', workout: 'home', workouts: 'home', results_db: 'results', settings: 'settings', help: 'settings', legal: 'settings', plans: 'plans' };
 function go(name, p = {}) {
   if (cleanup) { try { cleanup(); } catch (e) { } cleanup = null; }
   window.scrollTo(0, 0);
-  const sec = ['exercises', 'help', 'settings'].includes(name) ? name : 'patients';
+  const sec = SECTION[name] || 'patients';
   for (const k in NAV) { const b = document.getElementById(NAV[k]); if (b) b.setAttribute('aria-current', k === sec ? 'page' : 'false'); }
   return SCREENS[name](p);
 }
@@ -118,7 +122,7 @@ SCREENS.patients = async () => {
   draw(''); $('#q').oninput = e => draw(e.target.value); $('#new-p').onclick = () => go('patientForm', {});
 };
 
-SCREENS.patientForm = async ({ id }) => {
+SCREENS.patientForm = async ({ id, then }) => {
   const p = id ? await Store.get('patients', id) : { id: uid(), name: '', birth: '', sex: '', height: '', weight: '', contact: '', complaint: '', notes: '', createdAt: todayISO() };
   app.innerHTML = `${back(id ? 'Voltar ao paciente' : 'Pacientes')}
     <h1>${id ? 'Editar paciente' : 'Novo paciente'}</h1>
@@ -127,8 +131,8 @@ SCREENS.patientForm = async ({ id }) => {
         <label class="f" style="grid-column:1/-1">Nome completo *<input id="f-name" required value="${esc(p.name)}" autocomplete="off"></label>
         <label class="f">Data de nascimento<input id="f-birth" type="date" value="${esc(p.birth)}"></label>
         <label class="f">Sexo<select id="f-sex"><option value="">—</option><option value="F"${p.sex === 'F' ? ' selected' : ''}>Feminino</option><option value="M"${p.sex === 'M' ? ' selected' : ''}>Masculino</option><option value="O"${p.sex === 'O' ? ' selected' : ''}>Outro</option></select></label>
-        <label class="f">Altura (cm)<input id="f-height" type="number" inputmode="decimal" min="40" max="250" value="${esc(p.height)}"></label>
-        <label class="f">Peso (kg)<input id="f-weight" type="number" inputmode="decimal" min="2" max="400" step="0.1" value="${esc(p.weight)}"></label>
+        <label class="f">Altura (${cmUnit()})<input id="f-height" type="number" inputmode="decimal" min="10" max="250" step="0.1" value="${p.height ? +cmOut(p.height).toFixed(1) : ''}"></label>
+        <label class="f">Peso (${kgUnit()})<input id="f-weight" type="number" inputmode="decimal" min="2" max="900" step="0.1" value="${p.weight ? +kgOut(p.weight).toFixed(1) : ''}"></label>
         <label class="f" style="grid-column:1/-1">Contato<input id="f-contact" value="${esc(p.contact)}" placeholder="Telefone ou e-mail"></label>
         <label class="f" style="grid-column:1/-1">Queixa principal<textarea id="f-complaint" rows="2">${esc(p.complaint)}</textarea></label>
         <label class="f" style="grid-column:1/-1">Observações<textarea id="f-notes" rows="2">${esc(p.notes)}</textarea></label>
@@ -142,8 +146,8 @@ SCREENS.patientForm = async ({ id }) => {
     e.preventDefault();
     const name = $('#f-name').value.trim();
     if (!name) { $('#f-err').hidden = false; $('#f-name').focus(); return; }
-    Object.assign(p, { name, birth: $('#f-birth').value, sex: $('#f-sex').value, height: parseFloat($('#f-height').value) || '', weight: parseFloat($('#f-weight').value) || '', contact: $('#f-contact').value.trim(), complaint: $('#f-complaint').value.trim(), notes: $('#f-notes').value.trim() });
-    await Store.put('patients', p); toast('Paciente salvo'); go('patient', { id: p.id });
+    Object.assign(p, { name, birth: $('#f-birth').value, sex: $('#f-sex').value, height: (parseFloat($('#f-height').value) || 0) / cmOut(1) || '', weight: (parseFloat($('#f-weight').value) || 0) / kgOut(1) || '', contact: $('#f-contact').value.trim(), complaint: $('#f-complaint').value.trim(), notes: $('#f-notes').value.trim() });
+    await Store.put('patients', p); toast('Paciente salvo'); if (then) return startAssessment(p.id, then); go('patient', { id: p.id });
   };
 };
 
@@ -172,7 +176,7 @@ SCREENS.patient = async ({ id }) => {
     <div class="row spread" style="align-items:flex-start">
       <div class="row" style="gap:14px;align-items:center"><span class="av" style="width:56px;height:56px;font-size:1.2rem">${esc(initials(p.name))}</span>
         <div class="stack" style="gap:2px"><h1>${esc(p.name)} ${p.example ? '<span class="tag">Exemplo</span>' : ''}</h1>
-        <span class="muted">${[ag != null ? ag + ' anos' : '', sexo, p.height ? p.height + ' cm' : '', p.weight ? nf(p.weight) + ' kg' : '', im ? 'IMC ' + nf(im) : ''].filter(Boolean).join(' · ') || 'Sem dados clínicos'}</span></div></div>
+        <span class="muted">${[ag != null ? ag + ' anos' : '', sexo, p.height ? nf(cmOut(p.height), 0) + ' ' + cmUnit() : '', p.weight ? nf(kgOut(p.weight)) + ' ' + kgUnit() : '', im ? 'IMC ' + nf(im) : ''].filter(Boolean).join(' · ') || 'Sem dados clínicos'}</span></div></div>
       <div class="row"><button class="btn" id="edit">Editar</button><button class="btn danger" id="del">Excluir</button></div>
     </div>
     ${p.complaint ? `<div class="panel"><span class="eyebrow">Queixa principal</span><p style="margin:6px 0 0">${esc(p.complaint)}</p></div>` : ''}
@@ -212,6 +216,7 @@ function pickKind(pid) {
     if (e.target === m || e.target.closest('[data-x]')) return m.remove();
     const b = e.target.closest('[data-k]'); if (!b) return;
     m.remove();
+    if (!Billing.can(await Billing.plan(), b.dataset.k)) return go('plans', { need: b.dataset.k });
     const a = { id: uid(), patientId: pid, kind: b.dataset.k, date: todayISO(), views: {}, order: [], notes: '', conclusion: '', createdAt: todayISO() };
     await Store.put('assessments', a);
     go(KINDS[a.kind].video ? 'video' : 'assessment', { id: a.id });
@@ -317,7 +322,8 @@ function straighten(file) {
 /* ---------- marcação de pontos ---------- */
 SCREENS.mark = async ({ id, slot, auto }) => {
   const a = await Store.get('assessments', id); const vd = a?.views[slot]; if (!vd?.img) return go('assessment', { id });
-  const S = await getSettings(), V = getView(slot, vd);
+  const S = await getSettings(), V = getView(slot, vd), plan = await Billing.plan();
+  const lockTag = f => Billing.can(plan, f) ? '' : ' 🔒';
   vd.points ||= {};
   let img = await loadImg(vd.img), IW = img.naturalWidth, IH = img.naturalHeight;
   const st = { sel: null, z: 1, ox: 0, oy: 0, drag: null, k: 1, cssW: 0, cssH: 0, placing: false };
@@ -329,6 +335,7 @@ SCREENS.mark = async ({ id, slot, auto }) => {
     <div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">Marcação de pontos</span><h1>${esc(V.label)}</h1></div></div>
     <p class="muted" style="margin:0;max-width:75ch;font-size:.9rem">${esc(V.hint)}</p>
     <div id="m-msg"></div>
+    ${V.rom && vd.rom?.id && ROM_DEMO[vd.rom.id] ? `<details class="panel"><summary><b>Ver demonstração do movimento</b></summary><div class="exdetail" style="margin-top:10px"><div class="exanim">${romDemoSVG(vd.rom.id, 200)}</div><div data-ownvideo></div></div></details>` : ''}
     <div class="mark">
       <div class="stack">
         <div class="stage" id="stage"><canvas id="cv"></canvas><canvas class="loupe" id="loupe" width="264" height="264" hidden></canvas>
@@ -336,11 +343,11 @@ SCREENS.mark = async ({ id, slot, auto }) => {
         <p class="muted" style="margin:0;font-size:.88rem">Arraste um ponto para ajustá-lo. Para posicionar um ponto específico, toque nele na lista e depois na foto. Com zoom, arraste a área vazia para mover a imagem.</p>
       </div>
       <aside class="panel stack">
-        <div class="row" style="gap:6px">${V.detect ? '<button class="btn small primary" id="auto">Detectar com IA</button>' : ''}<button class="btn small" id="tpl">Posicionar modelo</button><button class="btn small" id="green">Usar marcadores verdes</button></div>
-        <div class="row" style="gap:6px"><button class="btn small" id="bg">${vd.imgOrig ? 'Restaurar fundo' : 'Remover fundo'}</button><button class="btn small" id="clear">Limpar pontos</button></div>
-        ${canMask ? `<label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="mask" ${vd.mask ? 'checked' : ''}> Ocultar o rosto</label>` : ''}
+        <div class="row" style="gap:6px">${V.detect ? '<button class="btn small primary" id="auto">Detectar com IA</button>' : ''}<button class="btn small" id="tpl">Posicionar modelo</button><button class="btn small" id="green">Usar marcadores verdes${lockTag('green')}</button></div>
+        <div class="row" style="gap:6px"><button class="btn small" id="bg">${vd.imgOrig ? 'Restaurar fundo' : 'Remover fundo' + lockTag('bg')}</button><button class="btn small" id="clear">Limpar pontos</button></div>
+        ${canMask ? `<label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="mask" ${vd.mask ? 'checked' : ''}> Ocultar o rosto${lockTag('mask')}</label>` : ''}
         <label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="cal" ${vd.scale?.on ? 'checked' : ''}> Calibrar com régua (medidas em cm)</label>
-        <label class="f" id="cal-f" ${vd.scale?.on ? '' : 'hidden'}>Comprimento real da régua (cm)<input id="cal-cm" type="number" inputmode="decimal" min="1" step="0.1" value="${vd.scale?.cm || 100}"></label>
+        <label class="f" id="cal-f" ${vd.scale?.on ? '' : 'hidden'}>Comprimento real da régua (${cmUnit()})<input id="cal-cm" type="number" inputmode="decimal" min="0.5" step="0.1" value="${+cmOut(vd.scale?.cm || 100).toFixed(1)}"></label>
         <div><span class="eyebrow">Pontos</span></div>
         <div class="plist2" id="plist" role="list"></div>
         <button class="btn primary" id="done">Concluir</button>
@@ -424,6 +431,7 @@ SCREENS.mark = async ({ id, slot, auto }) => {
   $('#tpl').onclick = () => { for (const [k] of V.points) delete vd.points[k]; Object.assign(vd.points, tplPoints(V, IW, IH)); persist(); draw(); msg('Pontos na posição-modelo. Arraste cada um até o ponto anatômico.'); };
   $('#clear').onclick = () => { for (const [k] of V.points) delete vd.points[k]; st.sel = firstMissing(); persist(); draw(); msg('Pontos apagados. Selecione cada ponto na lista e toque na foto (modo manual).'); };
   $('#green').onclick = () => {
+    if (!Billing.can(plan, 'green')) return go('plans', { need: 'green' });
     const blobs = findGreenBlobs(img, IW, IH);
     if (!blobs.length) return msg('Nenhum marcador verde encontrado. Use adesivos verdes foscos de 1 a 2 cm, com boa iluminação.', 'warn');
     const est = {}; for (const [k] of V.points) est[k] = vd.points[k] || tplPoints(V, IW, IH)[k];
@@ -433,6 +441,7 @@ SCREENS.mark = async ({ id, slot, auto }) => {
     persist(); draw();
   };
   $('#bg').onclick = async () => {
+    if (!vd.imgOrig && !Billing.can(plan, 'bg')) return go('plans', { need: 'bg' });
     const b = $('#bg'); b.disabled = true;
     try {
       if (vd.imgOrig) { vd.img = vd.imgOrig; vd.imgOrig = null; }
@@ -441,15 +450,15 @@ SCREENS.mark = async ({ id, slot, auto }) => {
     } catch (err) { msg(`Não foi possível remover o fundo (${esc(err.message === 'timeout' ? 'tempo esgotado' : err.message)}).`, 'warn'); }
     b.disabled = false; b.textContent = vd.imgOrig ? 'Restaurar fundo' : 'Remover fundo';
   };
-  const mk = $('#mask'); if (mk) mk.onchange = e => { vd.mask = e.target.checked; persist(); draw(); };
+  const mk = $('#mask'); if (mk) mk.onchange = e => { if (e.target.checked && !Billing.can(plan, 'mask')) { e.target.checked = false; return go('plans', { need: 'mask' }); } vd.mask = e.target.checked; persist(); draw(); };
   $('#cal').onchange = e => {
-    vd.scale = { on: e.target.checked, cm: parseFloat($('#cal-cm').value) || 100 };
+    vd.scale = { on: e.target.checked, cm: (parseFloat($('#cal-cm').value) || cmOut(100)) / cmOut(1) };
     $('#cal-f').hidden = !e.target.checked;
     if (e.target.checked && !vd.points.reguaA) { const x = IW * 0.1; vd.points.reguaA = { x, y: IH * 0.1 }; vd.points.reguaB = { x, y: IH * 0.85 }; msg('Arraste os dois pontos amarelos até as extremidades de um objeto de tamanho conhecido (régua, fio de prumo marcado) no mesmo plano do paciente.'); }
     if (!e.target.checked) { delete vd.points.reguaA; delete vd.points.reguaB; }
     persist(); draw();
   };
-  $('#cal-cm').onchange = e => { vd.scale = { on: true, cm: parseFloat(e.target.value) || 100 }; persist(); draw(); };
+  $('#cal-cm').onchange = e => { vd.scale = { on: true, cm: (parseFloat(e.target.value) || cmOut(100)) / cmOut(1) }; persist(); draw(); };
   $('#done').onclick = async () => {
     clearTimeout(saveT); await Store.put('assessments', a);
     const miss = V.points.filter(([k, , o]) => !o && !vd.points[k]).length;
@@ -459,6 +468,7 @@ SCREENS.mark = async ({ id, slot, auto }) => {
   const onR = () => layout(); window.addEventListener('resize', onR);
   cleanup = () => { window.removeEventListener('resize', onR); clearTimeout(saveT); Store.put('assessments', a); };
   st.sel = firstMissing(); layout();
+  if ($('[data-ownvideo]')) bindOwnVideo(app, 'rom:' + vd.rom.id, 'este movimento');
   if (auto && !Object.keys(vd.points).length) { if (V.detect) runAuto(); else { Object.assign(vd.points, tplPoints(V, IW, IH)); persist(); draw(); msg('Pontos na posição-modelo. Arraste cada um até o ponto anatômico.'); } }
 };
 
@@ -500,10 +510,13 @@ SCREENS.results = async ({ id }) => {
     ${slots.map(s => { const vd = a.views[s], V = getView(s, vd); return `<section class="panel stack"><div class="row spread"><h2>${esc(V.label)}</h2><button class="btn small" data-jpg="${s}">Salvar imagem</button></div><div class="res"><canvas data-cv="${s}" aria-label="Foto ${esc(V.label)} com linhas de medida"></canvas><div style="min-width:0">${K.dynamic ? `<p class="muted" style="margin:0">${esc(vd.comment || '')}</p>` : measureTable(measuresFor(s, vd))}</div></div></section>`; }).join('')}
     ${ex.length ? `<section class="panel stack"><div class="row spread"><h2>Exercícios sugeridos</h2><label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="inc-ex" ${a.includeExercises ? 'checked' : ''}> Incluir no PDF</label></div>
       <p class="muted" style="margin:0;font-size:.88rem">Sugestões ligadas aos achados. Ajuste à condição do paciente antes de prescrever.</p>
-      <div class="exgrid">${ex.map(e => `<div class="excard"><b>${esc(e.name)}</b><span class="muted" style="font-size:.82rem">${esc(e.dose)} · para: ${esc(e.why.join(', ').toLowerCase())}</span><ol>${e.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>`).join('')}</div></section>` : ''}`;
+      <div class="exgrid">${ex.map(e => `<button class="excard exlink" data-exo="${e.id}"><span class="row" style="gap:10px;align-items:center;flex-wrap:nowrap">${exPicto(e.pose, 56)}<span><b>${esc(e.name)}</b><br><span class="tag">${esc(EX_CATS[e.cat])}</span></span></span><span class="muted" style="font-size:.82rem">${esc(e.dose)} · para: ${esc(e.why.join(', ').toLowerCase())}</span></button>`).join('')}</div>
+      <div><button class="btn primary" id="ex-go">Começar treino com estes exercícios</button></div></section>` : ''}`;
   bindBack('patient', { id: a.patientId });
   for (const s of slots) paintInto($(`[data-cv="${s}"]`), getView(s, a.views[s]), a.views[s], S);
   $('#concl').onchange = async e => { a.conclusion = e.target.value; await Store.put('assessments', a); toast('Conclusão salva'); };
+  $$('[data-exo]').forEach(b => b.onclick = () => go('exercise', { id: b.dataset.exo }));
+  const eg = $('#ex-go'); if (eg) eg.onclick = () => go('workout', { ids: ex.map(e => e.id), patientId: a.patientId });
   const ie = $('#inc-ex'); if (ie) ie.onchange = async e => { a.includeExercises = e.target.checked; await Store.put('assessments', a); };
   $('#edit').onclick = () => go('assessment', { id });
   if (prev) $('#cmp').onclick = () => go('compare', { pid: a.patientId, a: prev.id, b: a.id });
@@ -520,6 +533,7 @@ SCREENS.results = async ({ id }) => {
 
 /* ---------- comparação antes × depois ---------- */
 SCREENS.compare = async ({ pid, a: ida, b: idb }) => {
+  if (!Billing.can(await Billing.plan(), 'compare')) return go('plans', { need: 'compare' });
   const p = await Store.get('patients', pid), S = await getSettings();
   const allA = await Store.all('assessments');
   const A0 = allA.find(x => x.id === ida) || allA.find(x => x.id === idb);
@@ -562,13 +576,6 @@ SCREENS.compare = async ({ pid, a: ida, b: idb }) => {
 };
 
 /* ---------- exercícios e ajuda ---------- */
-SCREENS.exercises = async () => {
-  const areas = [...new Set(EXERCISES.map(e => e.area))];
-  app.innerHTML = `<div class="stack" style="gap:4px"><span class="eyebrow">Biblioteca</span><h1>Exercícios de correção postural</h1></div>
-    <p class="muted" style="margin:0;max-width:70ch">Exercícios de referência para os achados mais comuns. Nos resultados de cada avaliação, o TEAMRM sugere os que se aplicam aos desvios encontrados.</p>
-    <div class="tipday"><span class="eyebrow">Dica do dia</span><p style="margin:4px 0 0">${esc(tipOfDay())}</p></div>
-    ${areas.map(ar => `<section class="stack"><h2>${esc(ar)}</h2><div class="exgrid">${EXERCISES.filter(e => e.area === ar).map(e => `<div class="excard"><b>${esc(e.name)}</b><span class="muted" style="font-size:.82rem">${esc(e.dose)}</span><ol>${e.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>`).join('')}</div></section>`).join('')}`;
-};
 SCREENS.help = async () => {
   app.innerHTML = `<div class="stack" style="gap:4px"><span class="eyebrow">Ajuda</span><h1>Como usar o TEAMRM</h1></div>
     <div class="stack">${HELP.map(([q, r]) => `<details class="panel"><summary><b>${esc(q)}</b></summary><p style="margin:10px 0 0">${esc(r)}</p></details>`).join('')}</div>
@@ -579,8 +586,12 @@ SCREENS.help = async () => {
 const PALETTES = { teamrm: 'TEAMRM (preto e amarelo)', indigo: 'Índigo', oceano: 'Oceano', vinho: 'Vinho' };
 SCREENS.settings = async () => {
   const S = await getSettings();
-  app.innerHTML = `<div class="stack" style="gap:4px"><span class="eyebrow">Consultório</span><h1>Configurações</h1></div>
-    <form class="panel stack" id="sf"><h2>Dados do relatório</h2>
+  const cfg = TEAMRM_CONFIG, plan = await Billing.plan();
+  app.innerHTML = `<div class="stack" style="gap:4px"><span class="eyebrow">TEAMRM · Posture & Correction</span><h1>Ajustes</h1></div>
+    <h2 class="sethead">Configurações gerais</h2>
+    <div class="setlist">
+    <details class="setitem"><summary><span class="sico">PDF</span><span><b>Personalização dos relatórios</b><small>Logo, dados da clínica, cores e conteúdo do PDF</small></span></summary>
+    <form class="stack" id="sf">
       <div class="grid-form">
         <label class="f" style="grid-column:1/-1">Nome da clínica<input id="s-clinic" value="${esc(S.clinic)}" placeholder="Ex.: Clínica Movimento Fisioterapia"></label>
         <label class="f">Profissional responsável<input id="s-prof" value="${esc(S.professional)}"></label>
@@ -597,7 +608,19 @@ SCREENS.settings = async () => {
         <label class="row" style="gap:8px;grid-column:1/-1"><input type="checkbox" id="s-pex" ${S.pdfExercises ? 'checked' : ''}> Incluir exercícios sugeridos no PDF (quando marcados na avaliação)</label>
       </div>
       <div class="row" style="justify-content:flex-end"><button class="btn primary">Salvar</button></div>
-    </form>
+    </form></details>
+    <details class="setitem"><summary><span class="sico">cm</span><span><b>Sistema de unidades: ${S.units === 'imperial' ? 'Imperial' : 'Métrico'}</b><small>${S.units === 'imperial' ? 'lb, pol' : 'kg, cm'}</small></span></summary>
+      <div class="row"><label class="row" style="gap:6px"><input type="radio" name="un" value="metric" ${S.units !== 'imperial' ? 'checked' : ''}> Métrico (kg, cm)</label><label class="row" style="gap:6px"><input type="radio" name="un" value="imperial" ${S.units === 'imperial' ? 'checked' : ''}> Imperial (lb, pol)</label></div>
+      <p class="muted" style="margin:0;font-size:.85rem">As faixas de referência continuam calculadas em centímetros; só a exibição muda.</p></details>
+    <details class="setitem"><summary><span class="sico">▤</span><span><b>Armazenamento</b><small>Backup, espaço usado, limpar cache e preferências</small></span></summary>
+      <div class="stack">
+      <p class="muted" style="margin:0;max-width:65ch">Pacientes, fotos, vídeos e avaliações ficam somente neste aparelho, neste navegador. Exporte um backup com frequência e guarde em local seguro: ele contém dados de saúde protegidos pela LGPD. Os vídeos não entram no backup (ficam grandes demais).</p>
+      <div class="row"><button class="btn" id="bk-out">Exportar backup</button><label class="btn" style="cursor:pointer">Restaurar backup<input type="file" accept="application/json,.json" id="bk-in" hidden></label><button class="btn ghost danger" id="ex-rm">Apagar paciente de exemplo</button></div>
+      <div class="row"><button class="btn" id="cache">Limpar cache do app</button><button class="btn" id="prefs">Limpar preferências</button><button class="btn" id="persist">Proteger dados contra limpeza automática</button></div>
+      <p class="muted" id="bk-info" style="margin:0;font-size:.85rem"></p></div></details>
+    <button class="setitem setbtn" id="go-plans"><span class="sico">★</span><span><b>Conta e assinatura</b><small>${Billing.enabled ? 'Plano atual: ' + esc(PLANS[plan].label) : 'Planos Free, Pro e Pro Plus'}</small></span><span aria-hidden="true">›</span></button>
+    </div>
+    <h2 class="sethead">Avaliação</h2>
     <section class="panel stack"><h2>Protocolos de amplitude de movimento</h2>
       <p class="muted" style="margin:0;font-size:.9rem">Monte listas de movimentos para aplicar de uma vez numa avaliação de ADM. Inclua ângulos próprios entre quaisquer pontos.</p>
       <div id="protos"></div>
@@ -614,11 +637,43 @@ SCREENS.settings = async () => {
           <div><button type="button" class="btn primary" id="pr-save">Salvar protocolo</button></div>
         </div></details>
     </section>
-    <section class="panel stack"><h2>Backup dos dados</h2>
-      <p class="muted" style="margin:0;max-width:65ch">Pacientes, fotos e avaliações ficam somente neste aparelho, neste navegador. Exporte um backup com frequência e guarde em local seguro: ele contém dados de saúde protegidos pela LGPD.</p>
-      <div class="row"><button class="btn" id="bk-out">Exportar backup</button><label class="btn" style="cursor:pointer">Restaurar backup<input type="file" accept="application/json,.json" id="bk-in" hidden></label><button class="btn ghost danger" id="ex-rm">Apagar paciente de exemplo</button></div>
-      <p class="muted" id="bk-info" style="margin:0;font-size:.85rem"></p>
-    </section>`;
+    <h2 class="sethead">Suporte</h2>
+    <div class="setlist">
+      <button class="setitem setbtn" id="go-help"><span class="sico">?</span><span><b>Ajuda e protocolo de fotografia</b><small>Como fotografar, marcar pontos e usar cada teste</small></span><span aria-hidden="true">›</span></button>
+      <details class="setitem"><summary><span class="sico">✉</span><span><b>Contate-nos</b><small>E-mail e WhatsApp do suporte TEAMRM</small></span></summary>
+        ${cfg.support.email || cfg.support.whatsapp ? `<div class="stack">${cfg.support.email ? `<p style="margin:0">E-mail: <b class="selectable">${esc(cfg.support.email)}</b> <button class="btn small" data-copy="${esc(cfg.support.email)}">Copiar</button></p>` : ''}${cfg.support.whatsapp ? `<p style="margin:0">WhatsApp: <b class="selectable">${esc(cfg.support.whatsapp)}</b> <a class="btn small" href="https://wa.me/${esc(cfg.support.whatsapp.replace(/\D/g, ''))}" target="_blank" rel="noopener">Abrir conversa</a></p>` : ''}</div>` : '<p class="muted" style="margin:0">Contato de suporte ainda não configurado (arquivo js/config.js).</p>'}</details>
+      <details class="setitem"><summary><span class="sico">!</span><span><b>Reportar um erro</b><small>Descreva o que aconteceu; os dados técnicos são anexados</small></span></summary>
+        <div class="stack"><label class="f">O que aconteceu?<textarea id="bug" rows="3" placeholder="Ex.: ao exportar o PDF da flexão de tronco, aparece uma mensagem de erro"></textarea></label>
+        <p class="muted" style="margin:0;font-size:.82rem">Não inclua nomes ou dados de pacientes.</p>
+        <div class="row"><button class="btn" id="bug-copy">Copiar relato</button>${cfg.support.email ? '<button class="btn primary" id="bug-mail">Enviar por e-mail</button>' : ''}</div></div></details>
+    </div>
+    <h2 class="sethead">Segurança e privacidade</h2>
+    <div class="setlist">
+      <details class="setitem"><summary><span class="sico">⛨</span><span><b>Permissões</b><small>Câmera e armazenamento deste aparelho</small></span></summary><div class="stack" id="perms"><p class="muted" style="margin:0">Verificando…</p></div></details>
+      <button class="setitem setbtn" id="go-privacy"><span class="sico">✓</span><span><b>Política de privacidade</b><small>Como os dados são tratados (LGPD)</small></span><span aria-hidden="true">›</span></button>
+      <button class="setitem setbtn" id="go-terms"><span class="sico">§</span><span><b>Termos de uso</b><small>Condições de uso e da assinatura</small></span><span aria-hidden="true">›</span></button>
+    </div>
+    <p class="muted" style="text-align:center;font-size:.8rem;margin:8px 0 0">TEAMRM - Posture & Correction · versão ${APP_VERSION}</p>`;
+
+  $('#go-plans').onclick = () => go('plans');
+  $('#go-help').onclick = () => go('help');
+  $('#go-privacy').onclick = () => go('legal', { doc: 'privacy' });
+  $('#go-terms').onclick = () => go('legal', { doc: 'terms' });
+  $$('[name="un"]').forEach(r => r.onchange = async () => { S.units = r.value; await Store.put('settings', S); applyUnits(S); toast('Unidades: ' + (S.units === 'imperial' ? 'imperial' : 'métrico')); go('settings'); });
+  $$('[data-copy]').forEach(b => b.onclick = () => copyText(b.dataset.copy));
+  const bugText = () => `Relato de erro — TEAMRM ${APP_VERSION}\n\n${$('#bug').value.trim()}\n\nNavegador: ${navigator.userAgent}\nTela: ${screen.width}×${screen.height}\nArmazenamento local: ${Store.persistent ? 'sim' : 'não'}\nData: ${new Date().toISOString()}`;
+  $('#bug-copy').onclick = () => copyText(bugText());
+  const bm = $('#bug-mail'); if (bm) bm.onclick = () => { location.href = `mailto:${cfg.support.email}?subject=${encodeURIComponent('Erro no TEAMRM')}&body=${encodeURIComponent(bugText())}`; };
+  $('#cache').onclick = async () => { try { for (const k of await caches.keys()) await caches.delete(k); const r = await navigator.serviceWorker?.getRegistrations?.(); for (const x of r || []) await x.unregister(); } catch (e) { } toast('Cache limpo. Recarregando…'); setTimeout(() => location.reload(), 900); };
+  $('#prefs').onclick = async () => { if (!(await confirmBox('Limpar preferências?', 'Tema, cores, unidades e dados do relatório voltam ao padrão. Pacientes e avaliações não são apagados.', 'Limpar'))) return; const keep = { protocols: S.protocols, seeded: true }; await Store.put('settings', { ...DEFAULT_SETTINGS, ...keep }); try { localStorage.removeItem('teamrm-theme'); localStorage.removeItem('teamrm-palette'); } catch (e) { } applyPalette(DEFAULT_SETTINGS); applyUnits(DEFAULT_SETTINGS); toast('Preferências limpas'); go('settings'); };
+  $('#persist').onclick = async () => { try { const ok = await navigator.storage?.persist?.(); toast(ok ? 'Dados protegidos contra limpeza automática' : 'O navegador não concedeu a proteção (instale o app na tela inicial e tente de novo)', 4000); } catch (e) { toast('Este navegador não oferece essa proteção'); } };
+  (async () => {
+    const rows = [];
+    try { const c = await navigator.permissions.query({ name: 'camera' }); rows.push(['Câmera', { granted: 'permitida', denied: 'bloqueada — libere nas configurações do navegador', prompt: 'será pedida ao tirar a primeira foto' }[c.state] || c.state]); } catch (e) { rows.push(['Câmera', 'pedida ao tirar a foto (o app também aceita fotos da galeria)']); }
+    try { const p = await navigator.storage?.persisted?.(); rows.push(['Armazenamento protegido', p ? 'sim' : 'não (o navegador pode limpar dados se faltar espaço)']); } catch (e) { }
+    rows.push(['Armazenamento local', Store.persistent ? 'disponível' : 'indisponível neste navegador']);
+    $('#perms').innerHTML = rows.map(([k, v]) => `<p style="margin:0"><b>${k}:</b> ${esc(v)}</p>`).join('') + '<p class="muted" style="margin:0;font-size:.85rem">O app não acessa localização, contatos nem microfone.</p>';
+  })();
   const drawProtos = () => {
     const ps = S.protocols || [];
     $('#protos').innerHTML = ps.length ? `<div class="plist">${ps.map(pr => `<div class="prow" style="grid-template-columns:1fr auto;cursor:default"><span><b>${esc(pr.name)}</b><br><span class="muted" style="font-size:.85rem">${esc(pr.items.map(i => i.label).join(' · '))}</span></span><button class="btn small ghost danger" data-prdel="${pr.id}">Excluir</button></div>`).join('')}</div>` : '<p class="muted" style="margin:0">Nenhum protocolo criado.</p>';
@@ -636,6 +691,7 @@ SCREENS.settings = async () => {
     $('#ca-label').value = ''; $('#ca-pts').value = ''; $('#ca-normal').value = '';
   };
   $('#pr-save').onclick = async () => {
+    if (!Billing.can(plan, 'protocols')) return go('plans', { need: 'protocols' });
     const name = $('#pr-name').value.trim(); if (!name) return toast('Dê um nome ao protocolo');
     const items = [...$$('[data-pr]:checked').map(c => ROM_PRESETS.find(r => r.id === c.dataset.pr)), ...custom];
     if (!items.length) return toast('Escolha ao menos um movimento');

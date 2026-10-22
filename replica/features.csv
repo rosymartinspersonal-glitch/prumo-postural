@@ -51,7 +51,7 @@ Acompanhamento de medidas repetidas,evolução,should,yes,yes,gráfico de evolu�
 Dados só no aparelho,privacidade,must,yes,yes,
 Celular e tablet,plataforma,must,yes,yes,PWA
 Interface multilíngue,interface,could,yes,skip,não implementado: app de uso na clínica só em português; fazer se for atender pacientes em outro idioma
-Assinaturas e planos pagos,negócio,skip,yes,skip,app de uso próprio da clínica
+Assinaturas e planos pagos,negócio,should,yes,partial,Supabase + Stripe escritos; ativar após criar as contas (ver replica/backend.md)
 Validação científica publicada (35+ artigos),credibilidade,skip,yes,skip,pertence ao original; não é função de software
 Cadastro de pacientes com histórico,pacientes,should,no,yes,a mais que o original
 Comparação antes × depois,evolução,should,no,yes,a mais que o original
@@ -59,3 +59,17 @@ Backup e restauração,privacidade,should,no,yes,a mais que o original
 Funciona offline,plataforma,should,no,yes,a mais que o original
 Classificação postural de Kendall,resultados,should,no,yes,a mais que o original
 Exercícios sugeridos a partir dos achados,conteúdo,should,no,yes,a mais que o original
+Menu inicial em cartões ilustrados,interface,should,yes,yes,
+Banco de resultados com filtros e ordenação,resultados,should,yes,yes,"filtro por tipo, recente/antigo, miniatura, tamanho e data"
+Sistema de unidades métrico/imperial,interface,could,yes,yes,
+Armazenamento: limpar cache e preferências,interface,could,yes,yes,
+Contate-nos e reportar um erro,suporte,could,yes,yes,contato em js/config.js
+"Permissões, política de privacidade e termos",segurança,should,yes,yes,modelo de base; revisar com advogado
+Restaurar compras,negócio,could,yes,yes,sincroniza o plano com o servidor
+Biblioteca de exercícios por categoria (64),conteúdo,should,yes,yes,"alongamento, fortalecimento, mobilidade, ativação corretiva"
+Ilustrações dos exercícios,conteúdo,should,yes,yes,animações próprias
+Começar o treino (treino guiado),conteúdo,should,yes,yes,cronômetro e contagem de repetições
+Rastreador de treinos,conteúdo,could,yes,yes,"histórico, semana, sequência"
+Vídeos explicativos dos movimentos,conteúdo,should,yes,yes,animação da ADM + vídeo próprio ou link
+Análise de vídeo por movimento com repetições,vídeo,should,no,yes,"a mais: % do normal, regularidade, compensações, confiança"
+Tema claro e escuro,interface,could,no,yes,a mais que o original

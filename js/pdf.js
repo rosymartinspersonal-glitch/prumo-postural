@@ -24,7 +24,8 @@ async function exportPDF(a, p) {
   if (S.pdfSubtitle) doc.text(pdfSafe(S.pdfSubtitle), M, 15);
   doc.text(pdfSafe([S.professional, S.registry].filter(Boolean).join(' · ')), M, S.pdfSubtitle ? 20 : 16);
   if (S.contact) doc.text(pdfSafe(S.contact), M, S.pdfSubtitle ? 24.5 : 21);
-  if (S.logo) { try { const li = await loadImg(S.logo), lh = 20, lw = Math.min(50, lh * li.naturalWidth / li.naturalHeight); doc.setFillColor(255, 255, 255); doc.roundedRect(W - M - lw - 2, 4, lw + 4, lh, 2, 2, 'F'); doc.addImage(S.logo, 'PNG', W - M - lw, 4, lw, lh); } catch { } }
+  const canCustom = Billing.can(await Billing.plan(), 'pdfCustom');
+  if (S.logo && canCustom) { try { const li = await loadImg(S.logo), lh = 20, lw = Math.min(50, lh * li.naturalWidth / li.naturalHeight); doc.setFillColor(255, 255, 255); doc.roundedRect(W - M - lw - 2, 4, lw + 4, lh, 2, 2, 'F'); doc.addImage(S.logo, 'PNG', W - M - lw, 4, lw, lh); } catch { } }
   else {
     // logo TEAMRM (branca e amarela): em banner claro, ganha um fundo preto
     try {
@@ -39,7 +40,7 @@ async function exportPDF(a, p) {
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...MUT); doc.text('Data: ' + fmtDate(a.date), W - M, y, { align: 'right' });
   y += 6;
   const ag = age(p.birth), im = bmi(p), sexo = { F: 'Feminino', M: 'Masculino', O: 'Outro' }[p.sex] || '-';
-  const info = [['Paciente', p.name], ['Idade', ag != null ? ag + ' anos' : '-'], ['Sexo', sexo], ['Altura', p.height ? p.height + ' cm' : '-'], ['Peso', p.weight ? nf(p.weight) + ' kg' : '-'], ['IMC', im ? nf(im) + ' kg/m²' : '-']];
+  const info = [['Paciente', p.name], ['Idade', ag != null ? ag + ' anos' : '-'], ['Sexo', sexo], ['Altura', p.height ? nf(cmOut(p.height), 0) + ' ' + cmUnit() : '-'], ['Peso', p.weight ? nf(kgOut(p.weight)) + ' ' + kgUnit() : '-'], ['IMC', im ? nf(im) + ' kg/m²' : '-']];
   doc.setFillColor(243, 244, 248); doc.roundedRect(M, y, W - 2 * M, 22, 2, 2, 'F');
   info.forEach(([k, v], i) => { const cx = M + 4 + (i % 3) * 61, cy = y + 7 + Math.floor(i / 3) * 9; doc.setFontSize(7.5); doc.setTextColor(...MUT); doc.text(k.toUpperCase(), cx, cy - 2.6); doc.setFontSize(10); doc.setTextColor(...INK); doc.text(pdfSafe(v), cx, cy + 1.6, { maxWidth: 58 }); });
   y += 28;
@@ -72,12 +73,30 @@ async function exportPDF(a, p) {
 
   if (K.video) {
     const vv = a.video || {};
-    h2('Resumo dos ângulos');
-    const st = (vv.angles || []).map(k => ({ k, s: vstats(vv.series[k], vv.times) })).filter(x => x.s);
-    doc.setFontSize(9.5);
-    for (const { k, s } of st) { need(6); doc.setTextColor(...INK); doc.text(pdfSafe(VID_ANGLES[k].label), M, y); doc.setFont('courier', 'bold'); doc.text(`mín ${nf(s.min)}°  máx ${nf(s.max)}°  amplitude ${nf(s.amp)}°  média ${nf(s.mean)}°`, W - M, y, { align: 'right' }); doc.setFont('helvetica', 'normal'); y += 5.5; }
-    y += 3;
-    for (const { k } of st) { const c = seriesCanvas(vv.series[k], vv.times, pdfSafe(VID_ANGLES[k].label)); need(62); doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', M, y, W - 2 * M, (W - 2 * M) / 3); y += (W - 2 * M) / 3 + 4; }
+    if (vv.analysis === 'mov' && vv.series?.p) {
+      const R = movementReport(vv), Mv = VMOVES[vv.move];
+      h2(`${Mv.label} · lado ${vv.side === 'D' ? 'direito' : 'esquerdo'} · vista ${Mv.plane === 'frontal' ? 'frontal' : 'lateral'}`);
+      y = table(R.items.map(it => ({ label: it.label, v: it.v, unit: it.unit === '%' ? '%' : '°', status: it.status, text: '', ref: it.ref || '', key: 'video' })), M, W - 2 * M, y) + 2;
+      doc.setFontSize(9.5); doc.setTextColor(...INK);
+      const facts = [`Repetições detectadas: ${R.reps.length}`, R.mean != null ? `Pico médio: ${nf(R.mean)} ± ${nf(R.sd)}` : null, R.cv != null && R.reps.length > 1 ? `Regularidade (variação entre repetições): ${nf(R.cv, 0)}%` : null, R.dur ? `Duração média por repetição: ${nf(R.dur)} s (subida ${nf(R.up)} s, volta ${nf(R.down)} s)` : null, R.conf != null ? `Confiança da detecção: ${nf(R.conf, 0)}%` : null].filter(Boolean);
+      for (const f of facts) { need(5); doc.text(pdfSafe(f), M, y); y += 4.8; }
+      if (R.text) { y += 2; para(R.text, 9.5); }
+      if (R.reps.length) {
+        y += 2; need(8 + R.reps.length * 4.6); doc.setFontSize(7.5); doc.setTextColor(...MUT);
+        ['REP.', 'PICO', 'SUBIDA', 'VOLTA', 'DURAÇÃO'].forEach((h, i) => doc.text(h, M + i * 30, y)); y += 4.5; doc.setFontSize(9); doc.setTextColor(...INK);
+        R.reps.forEach((r, i) => { [String(i + 1), nf(r.peak) + (/%/.test(Mv.primary.label) ? '%' : '°'), nf(r.tp - r.t0) + ' s', nf(r.t1 - r.tp) + ' s', nf(r.t1 - r.t0) + ' s'].forEach((v, k) => doc.text(pdfSafe(v), M + k * 30, y)); y += 4.6; });
+      }
+      y += 3;
+      for (const c of vChannels(vv)) { if (!vv.series[c.key]) continue; const cv2 = seriesCanvas(vv.series[c.key], vv.times, pdfSafe(c.label), 900, 300, c.key === 'p' ? R.reps : []); need(62); doc.addImage(cv2.toDataURL('image/jpeg', 0.9), 'JPEG', M, y, W - 2 * M, (W - 2 * M) / 3); y += (W - 2 * M) / 3 + 4; }
+      para('Medidas 2D: o valor é fiel quando o movimento acontece no plano perpendicular à câmera.', 8, MUT);
+    } else {
+      h2('Resumo dos ângulos');
+      const st = (vv.angles || []).map(k => ({ k, s: vstats(vv.series[k], vv.times) })).filter(x => x.s);
+      doc.setFontSize(9.5);
+      for (const { k, s } of st) { need(6); doc.setTextColor(...INK); doc.text(pdfSafe(VID_ANGLES[k].label), M, y); doc.setFont('courier', 'bold'); doc.text(`mín ${nf(s.min)}°  máx ${nf(s.max)}°  amplitude ${nf(s.amp)}°  média ${nf(s.mean)}°`, W - M, y, { align: 'right' }); doc.setFont('helvetica', 'normal'); y += 5.5; }
+      y += 3;
+      for (const { k } of st) { const c = seriesCanvas(vv.series[k], vv.times, pdfSafe(VID_ANGLES[k].label)); need(62); doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', M, y, W - 2 * M, (W - 2 * M) / 3); y += (W - 2 * M) / 3 + 4; }
+    }
     if (vv.keyframes?.length) { h2('Quadros-chave'); need(80); let x = M; for (const f of vv.keyframes) { const im2 = await loadImg(f.img); let iw = 80, ih = iw * im2.naturalHeight / im2.naturalWidth; if (ih > 100) { ih = 100; iw = ih * im2.naturalWidth / im2.naturalHeight; } doc.addImage(f.img, 'JPEG', x, y, iw, ih); doc.setFontSize(7.5); doc.setTextColor(...MUT); doc.text(pdfSafe(f.label), x, y + ih + 4, { maxWidth: iw }); x += iw + 8; } y += 110; }
   } else {
     const slots = slotsOf(a).filter(s => viewReady(a.views[s], s));

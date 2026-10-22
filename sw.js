@@ -1,6 +1,6 @@
 // TEAMRM - Posture & Correction — service worker: funciona offline depois da primeira visita.
-const VERSION = 'teamrm-v5';
-const SHELL = ['./', 'index.html', 'js/core.js', 'js/views.js', 'js/detect.js', 'js/draw.js', 'js/content.js', 'js/screens.js', 'js/video.js', 'js/pdf.js', 'js/main.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'assets/logo.png', 'assets/logo-mark.png', 'assets/favicon.png', 'assets/apple-touch-icon.png'];
+const VERSION = 'teamrm-v6';
+const SHELL = ['./', 'index.html', 'js/config.js', 'js/core.js', 'js/views.js', 'js/detect.js', 'js/draw.js', 'js/exercises.js', 'js/content.js', 'js/screens.js', 'js/screens-ex.js', 'js/home.js', 'js/billing.js', 'js/legal.js', 'js/video.js', 'js/pdf.js', 'js/main.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'assets/logo.png', 'assets/logo-mark.png', 'assets/favicon.png', 'assets/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -11,6 +11,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
+  if (/supabase\.co|stripe\.com/.test(req.url)) return;   // conta e pagamento sempre pela rede
   const url = new URL(req.url);
   // Arquivos do próprio app: rede primeiro (pega atualizações), cache se estiver offline.
   if (url.origin === location.origin) {

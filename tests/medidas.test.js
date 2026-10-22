@@ -2,7 +2,7 @@
 const assert = require('assert'), vm = require('vm'), fs = require('fs'), path = require('path');
 const ctx = { console, module: undefined };
 vm.createContext(ctx);
-const src = ['core', 'views', 'content'].map(f => fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8')).join('\n');
+const src = ['core', 'views', 'exercises', 'content'].map(f => fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8')).join('\n');
 vm.runInContext(src + '\n;Object.assign(this,{VIEWS,KINDS,ROM_PRESETS,ROM_TYPES,romView,tplPoints,explain,classifyPosture,exercisesFor,findings,PHI,EXERCISES,FINDING_EX});', ctx);
 const { VIEWS, KINDS, ROM_PRESETS, romView, tplPoints, explain, classifyPosture, exercisesFor, PHI, EXERCISES, FINDING_EX } = ctx;
 
@@ -123,3 +123,24 @@ t('todos os tipos de avaliação apontam para vistas existentes', () => {
 });
 
 console.log(`${n} grupos de testes passaram.`);
+
+// ---------- análise de vídeo: repetições e relatório ----------
+{
+  const vctx = { console, SCREENS: {}, module: undefined };
+  vm.createContext(vctx);
+  vm.runInContext(['core', 'views', 'exercises', 'video'].map(f => fs.readFileSync(path.join(__dirname, '..', 'js', f + '.js'), 'utf8')).join('\n') + '\n;Object.assign(this,{detectReps,movementReport,VMOVES,fppa});', vctx);
+  const times = [...Array(150)].map((_, i) => i / 15);   // 10 s a 15 qps
+  const reps3 = times.map(t => t < 1 ? 0 : t > 9.5 ? 0 : 75 - 75 * Math.cos((t - 1) / 8.5 * 3 * 2 * Math.PI)); // 3 repetições, pico 150°
+  const R = vctx.movementReport({ move: 'ombroFlex', series: { p: reps3, c: times.map(() => 5) }, times, conf: 0.9 });
+  assert.equal(R.reps.length, 3, 'conta 3 repetições');
+  near(R.best, 150, 0.5, 'pico'); near(R.pct, 150 / 180 * 100, 0.5, '% do normal'); assert.equal(R.status, 'warn');
+  assert(R.cv < 2, 'repetições regulares');
+  const comp = R.items.find(i => /tronco/.test(i.label)); assert.equal(comp.status, 'ok');
+  const R2 = vctx.movementReport({ move: 'ombroFlex', series: { p: reps3, c: times.map((t) => t * 2) }, times });
+  assert.equal(R2.items.find(i => /tronco/.test(i.label)).status, 'bad', 'compensação de tronco detectada');
+  // valgo dinâmico: joelho direito para dentro
+  const P = { quadrilD: { x: 40, y: 50 }, joelhoD: { x: 48, y: 80 }, tornozeloD: { x: 40, y: 110 }, joelhoE: { x: 60, y: 80 } };
+  assert(vctx.fppa(P, 'D') > 0, 'FPPA positivo = valgo');
+  n++;
+}
+console.log('Análise de vídeo conferida.');
