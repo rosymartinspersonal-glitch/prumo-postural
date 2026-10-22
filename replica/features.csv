@@ -1,0 +1,33 @@
+feature,area,priority,original,clone,notes
+Cadastro de pacientes,pacientes,must,parcial,no,original só tem dados no PDF
+Histórico de avaliações por paciente,pacientes,must,no,no,gap do original
+Captura pela câmera,captura,must,yes,no,
+Importar foto da galeria,captura,must,yes,no,
+Rotação/endireitar foto,captura,should,yes,no,
+4 vistas (frente/costas/lateral D/E),captura,must,yes,no,
+Detecção automática de pontos (IA),marcação,must,yes,no,MediaPipe Pose
+Marcação manual com arrastar,marcação,must,yes,no,reclamação no original
+Lupa de precisão,marcação,should,no,no,
+Marcadores verdes (detecção por cor),marcação,could,yes,no,fase 2
+Calibração por régua (px→cm),marcação,should,yes,no,
+Ângulos e desvios por vista,resultados,must,yes,no,
+Sinalização vs. faixa normal,resultados,must,yes,no,
+Overlay de linhas na foto,resultados,must,yes,no,
+Cor das linhas configurável,resultados,could,no,no,sugestão de usuário
+Máscara no rosto,privacidade,should,yes,no,
+Relatório PDF com logo e dados clínicos,relatório,must,yes,no,
+IMC no relatório,relatório,should,yes,no,
+Comparação antes/depois,resultados,should,no,no,gap do original
+Goniômetro/ADM em foto,adm,should,yes,no,
+Protocolos ADM customizados,adm,could,yes,no,
+Ângulo craniovertebral,cabeça-pescoço,must,yes,no,vista lateral
+ATSI/POTSI,tronco,could,yes,no,fase 2
+Proporção áurea,proporção,could,yes,no,fase 2
+Simetria facial,face,could,yes,no,fase 2
+Teste de Adams,tronco,could,yes,no,fase 2
+Análise de vídeo dinâmica,vídeo,could,yes,no,fase 2
+Dados só no aparelho,privacidade,must,yes,no,IndexedDB
+Backup/restauração,privacidade,must,no,no,evita perda de dados
+Funciona offline (PWA),plataforma,should,n/a,no,
+Assinaturas/planos,negócio,skip,yes,skip,uso interno na clínica
+Validação científica publicada,credibilidade,skip,yes,skip,pertence ao original
