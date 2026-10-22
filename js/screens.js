@@ -180,7 +180,7 @@ SCREENS.patient = async ({ id }) => {
     <div>${as.length ? `<div class="plist">${as.map(a => {
       const s = assessSummary(a), f = KINDS[kindOf(a)].video ? [] : findings(a), bad = f.filter(x => x.m.status === 'bad').length, warn = f.length - bad;
       const same = as.filter(x => kindOf(x) === kindOf(a));
-      return `<div class="prow" style="grid-template-columns:1fr auto;cursor:default"><span style="min-width:0"><b>${esc(KINDS[kindOf(a)].label)}</b> <span class="muted num" style="font-size:.86rem">· ${fmtDate(a.date)}</span><br><span class="muted" style="font-size:.86rem">${s.text}</span>
+      return `<div class="prow arow"><span style="min-width:0"><b>${esc(KINDS[kindOf(a)].label)}</b> <span class="muted num" style="font-size:.86rem">· ${fmtDate(a.date)}</span><br><span class="muted" style="font-size:.86rem">${s.text}</span>
         ${s.done && !KINDS[kindOf(a)].video ? `<span class="row" style="gap:6px;margin-top:6px">${bad ? `<span class="st bad">${bad} alterado${bad > 1 ? 's' : ''}</span>` : ''}${warn ? `<span class="st warn">${warn} em atenção</span>` : ''}${!f.length ? '<span class="st ok">Sem achados</span>' : ''}</span>` : ''}</span>
         <span class="row" style="gap:6px;justify-content:flex-end">${KINDS[kindOf(a)].video ? `<button class="btn small primary" data-video="${a.id}">Abrir análise</button>` : `<button class="btn small" data-open="${a.id}">Fotos e pontos</button><button class="btn small primary" data-res="${a.id}" ${s.done ? '' : 'disabled'}>Resultados</button>`}
         ${same.length > 1 && !KINDS[kindOf(a)].video ? `<button class="btn small ghost" data-cmp="${a.id}">Comparar</button>` : ''}</span></div>`;

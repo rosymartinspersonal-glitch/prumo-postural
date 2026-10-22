@@ -175,10 +175,12 @@ svg.chart .ax{font:11px var(--font-data);fill:var(--muted)}
 .pt-row .pt{flex:1;min-width:0}
 td .ref.ex{color:var(--ink);opacity:.8;margin-top:2px}
 details summary{cursor:pointer}
+.arow{grid-template-columns:1fr auto;cursor:default}
 .top nav .sm{display:none}
 /* Celular: menu vira barra inferior */
 @media (max-width:640px){
   .top nav .lg{display:none} .top nav .sm{display:inline}
+  .arow{grid-template-columns:1fr} .arow > .row{justify-content:flex-start!important}
   .top nav{position:fixed;left:0;right:0;bottom:0;z-index:25;margin:0;background:var(--brand);border-top:2px solid var(--accent);display:grid;grid-template-columns:repeat(4,1fr);gap:0;padding:4px max(4px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(4px,env(safe-area-inset-left,0px));overflow:visible}
   .top nav button{padding:10px 2px;font-size:.78rem;text-align:center;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .themebtn{margin-left:auto}
