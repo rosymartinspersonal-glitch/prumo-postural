@@ -68,7 +68,7 @@ async function exportPDF(a, p) {
     doc.setFontSize(9.5);
     for (const { k, s } of st) { need(6); doc.setTextColor(...INK); doc.text(pdfSafe(VID_ANGLES[k].label), M, y); doc.setFont('courier', 'bold'); doc.text(`mín ${nf(s.min)}°  máx ${nf(s.max)}°  amplitude ${nf(s.amp)}°  média ${nf(s.mean)}°`, W - M, y, { align: 'right' }); doc.setFont('helvetica', 'normal'); y += 5.5; }
     y += 3;
-    for (const { k } of st) { const c = seriesCanvas(vv.series[k], vv.times, pdfSafe(VID_ANGLES[k].label)); need(62); doc.addImage(c.toDataURL('image/png'), 'PNG', M, y, W - 2 * M, (W - 2 * M) / 3); y += (W - 2 * M) / 3 + 4; }
+    for (const { k } of st) { const c = seriesCanvas(vv.series[k], vv.times, pdfSafe(VID_ANGLES[k].label)); need(62); doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', M, y, W - 2 * M, (W - 2 * M) / 3); y += (W - 2 * M) / 3 + 4; }
     if (vv.keyframes?.length) { h2('Quadros-chave'); need(80); let x = M; for (const f of vv.keyframes) { const im2 = await loadImg(f.img); let iw = 80, ih = iw * im2.naturalHeight / im2.naturalWidth; if (ih > 100) { ih = 100; iw = ih * im2.naturalWidth / im2.naturalHeight; } doc.addImage(f.img, 'JPEG', x, y, iw, ih); doc.setFontSize(7.5); doc.setTextColor(...MUT); doc.text(pdfSafe(f.label), x, y + ih + 4, { maxWidth: iw }); x += iw + 8; } y += 110; }
   } else {
     const slots = slotsOf(a).filter(s => viewReady(a.views[s], s));

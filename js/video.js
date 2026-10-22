@@ -123,23 +123,25 @@ SCREENS.video = async ({ id }) => {
       $('#prog').textContent = 'Carregando o modelo de IA…';
       try { lm = await withTimeout(model('poseVideo'), 40000); } catch (e) { if (vv.mode === 'ia') throw new Error('não foi possível carregar a IA (' + e.message + ')'); }
       const dur = video.duration, step = 1 / vv.fps, times = [], frames = [];
-      let prev = null, ts = 0;
+      let prev = null, prev2 = null, ts = 0;
       for (let t = 0; t <= dur - 0.02; t += step) {
         await seekVideo(video, t);
         let P = null;
-        if (lm && (vv.mode === 'ia' || !prev)) {
+        if (lm) {
           ts = Math.max(ts + 1, Math.round(t * 1000));
           const r = lm.detectForVideo(video, ts);
           if (r.landmarks?.length) { P = {}; for (const k of need) { const L = r.landmarks[0][VID_PTS[k][idx]]; P[k] = { x: L.x, y: L.y }; } }
         }
         if (vv.mode === 'verde') {
+          // estimativa: IA deste quadro; sem IA, posição anterior + velocidade; no 1º quadro, posição-modelo
           const blobs = findGreenBlobs(video, video.videoWidth, video.videoHeight, 480).map(b => ({ x: b.x / video.videoWidth, y: b.y / video.videoHeight }));
-          let est = prev || P;
+          let est = P;
+          if (!est && prev) { est = {}; for (const k of need) { const v = prev2 && prev2[k] ? { x: prev[k].x - prev2[k].x, y: prev[k].y - prev2[k].y } : { x: 0, y: 0 }; est[k] = { x: prev[k].x + v.x, y: prev[k].y + v.y }; } }
           if (!est) { est = {}; const H = 0.9; for (const k of need) { const tp = VID_TPL[k]; est[k] = { x: .5 + (vv.side === 'D' ? 1 : -1) * (tp[0] - .5) * H * ch / cw, y: .05 + tp[1] * H }; } }
-          const snapped = snapToBlobs(est, blobs, prev ? 0.08 : 0.2);
-          P = { ...(prev || est), ...snapped };
+          const snapped = snapToBlobs(est, blobs, prev ? (P ? 0.06 : 0.05) : 0.2);
+          P = { ...est, ...snapped };
         }
-        times.push(+t.toFixed(3)); frames.push(P); if (P) prev = P;
+        times.push(+t.toFixed(3)); frames.push(P); if (P) { prev2 = prev; prev = P; }
         $('#prog').textContent = `Analisando ${Math.round(t / dur * 100)}%`;
         drawVideoFrame(ctx, video, cw, ch, P ? denorm(P, cw, ch) : null, vv, S);
         $('#viewer').hidden = false;
