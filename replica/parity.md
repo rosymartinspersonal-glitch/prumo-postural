@@ -48,7 +48,7 @@ Fora da conta, de propósito:
 
 - `node tests/medidas.test.js`: 13 grupos de testes das fórmulas (todas as vistas, espelhamento das laterais, limiares do Adams, POTSI/ATSI, φ, face, goniômetro, classificação, exercícios).
 - No navegador, no site publicado: as 11 telas abertas nos 10 tipos de avaliação sem erro; os 10 PDFs gerados; modelos de IA de pose, rosto e vídeo carregados; marcadores verdes achados na posição exata.
-- Análise de vídeo com um agachamento sintético com marcadores verdes. Esse teste achou dois defeitos, ambos corrigidos:
-  - troca de marcadores em movimento rápido;
-  - erro do modelo de IA na segunda análise.
+- Análise de vídeo com um agachamento sintético com marcadores verdes. O teste achou dois problemas:
+  - **Troca de marcadores quando o vídeo pula quadros** (comum em vídeos WebM gravados no navegador): corrigida com previsão de velocidade, raio de busca menor e IA a cada quadro. Com quadros regulares, o joelho mediu 110,7° (valor real: 110,7°).
+  - **Erro do modelo de IA na segunda análise seguida**: corrigido com um relógio contínuo entre análises; verificado com duas análises seguidas.
 - **Ainda não testado com pessoas reais**: precisão da IA em fotos e vídeos de pacientes. Confira os pontos nas primeiras avaliações.
