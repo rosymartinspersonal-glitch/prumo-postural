@@ -5,7 +5,7 @@
 - **App** (GitHub Pages, estático): telas, IA e dados clínicos. Pacientes, fotos, vídeos e avaliações ficam só no IndexedDB do aparelho.
 - **Supabase**: login (e-mail + senha, link mágico, redefinição de senha) e a tabela `subscriptions` (uma linha por usuário, só leitura para o próprio usuário).
 - **Stripe**: Checkout para assinar, Portal do Cliente para trocar de plano, atualizar o cartão, ver faturas e cancelar em um clique.
-- **Edge Functions** (`supabase/functions`):
+- **Edge Functions** (`supabase/functions`, um arquivo por função; passo a passo em `docs/CONFIGURAR-PAGAMENTOS.md`):
   - `create-checkout`: cria o cliente no Stripe e abre o Checkout do plano escolhido.
   - `customer-portal`: abre o Portal do Cliente do Stripe.
   - `stripe-webhook`: única fonte da verdade sobre o status da assinatura.

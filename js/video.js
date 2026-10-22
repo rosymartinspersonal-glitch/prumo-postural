@@ -121,7 +121,7 @@ function movementReport(vv) {
   }
   // texto de interpretação
   const t = [];
-  if (out.reps.length) t.push(`${out.reps.length} repetição${out.reps.length > 1 ? 'ões' : ''} detectada${out.reps.length > 1 ? 's' : ''}, média de ${nf(out.mean)}° ± ${nf(out.sd)}°${out.dur ? ` e ${nf(out.dur)} s por repetição` : ''}.`);
+  if (out.reps.length) t.push(`${out.reps.length} ${out.reps.length > 1 ? 'repetições detectadas' : 'repetição detectada'}, média de ${nf(out.mean)}° ± ${nf(out.sd)}°${out.dur ? ` e ${nf(out.dur)} s por repetição` : ''}.`);
   if (out.pct != null) t.push(out.pct >= 90 ? 'Amplitude preservada.' : out.pct >= 75 ? 'Amplitude levemente reduzida.' : 'Amplitude reduzida em relação ao valor de referência.');
   if (out.cv != null && out.reps.length > 1) t.push(out.cv <= 10 ? 'Repetições regulares.' : 'Repetições irregulares (variação acima de 10%): avaliar fadiga, dor ou controle motor.');
   const comp = out.items.find(i => M.comp && i.label === M.comp.label); if (comp && comp.status !== 'ok') t.push(`Compensação: ${M.comp.label.toLowerCase()} de ${nf(comp.v)}°.`);
