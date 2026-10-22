@@ -18,7 +18,7 @@ const FEATURE_PLAN = {
 const FEATURE_LABEL = { pdfCustom: 'PDF personalizado', compare: 'Comparação antes × depois', protocols: 'Protocolos de ADM', green: 'Marcadores verdes', bg: 'Remoção de fundo', mask: 'Máscara no rosto' };
 const featureLabel = k => KINDS[k]?.label || FEATURE_LABEL[k] || k;
 const Billing = (() => {
-  const cfg = TEAMRM_CONFIG, enabled = !!(cfg.supabaseUrl && cfg.supabaseAnonKey);
+  const cfg = TEAMRM_CONFIG, enabled = !!(cfg.supabaseUrl && cfg.supabaseAnonKey), enforce = enabled && !!cfg.billingActive;
   let client = null, cache = null;
   const CACHE_KEY = 'teamrm-plan';
   async function sb() {
@@ -43,7 +43,7 @@ const Billing = (() => {
     return active && PLANS[sub.plan] ? sub.plan : 'free';
   }
   async function plan(force = false) {
-    if (!enabled) return 'proplus';                       // cobrança desligada: tudo liberado
+    if (!enforce) return 'proplus';                       // cobrança desligada: tudo liberado
     const c = readCache();
     if (!force && c && Date.now() - c.at < 6 * 3600e3) return c.plan;
     try { const sub = await subscription(); const p = planOf(sub); writeCache({ plan: p, at: Date.now(), sub }); return p; }
@@ -60,7 +60,7 @@ const Billing = (() => {
     return j;
   }
   return {
-    enabled, plan, can, minPlan, user, subscription, planOf,
+    enabled, enforce, plan, can, minPlan, user, subscription, planOf,
     cached: () => readCache(),
     clearCache: () => { try { localStorage.removeItem(CACHE_KEY); } catch (e) { } },
     async signUp(email, password) { const { error } = await (await sb()).auth.signUp({ email, password, options: { emailRedirectTo: cfg.appUrl } }); if (error) throw error; },
@@ -79,7 +79,7 @@ const Billing = (() => {
 /* ---------- tela de planos e conta ---------- */
 SCREENS.plans = async ({ need } = {}) => {
   const cfg = TEAMRM_CONFIG;
-  const u = await Billing.user(), cur = await Billing.plan(true), cached = Billing.cached();
+  const u = await Billing.user(), cur = Billing.enforce ? await Billing.plan(true) : 'free', cached = Billing.cached();
   const sub = cached?.sub;
   let tab = need ? Billing.minPlan(need) : (cur === 'free' ? 'proplus' : cur);
   if (tab === 'free') tab = 'pro';
@@ -90,7 +90,7 @@ SCREENS.plans = async ({ need } = {}) => {
       <section class="planhero"><div class="row" style="justify-content:center;gap:10px"><img src="assets/logo-mark.png" alt="" height="44"><b class="brandword">TEAMRM</b><span class="planbadge">${esc(P.label)}</span></div>
         <h1 style="text-align:center">${tab === 'free' ? 'Comece a avaliar sem pagar nada' : 'Análises especializadas e fundamentos em um só lugar'}</h1>
         <p class="muted" style="text-align:center;margin:0">${esc(P.desc)}</p></section>
-      ${!Billing.enabled ? '<div class="banner warn">Pagamentos ainda não ativados neste app: todas as funções estão liberadas. Siga o passo a passo de configuração do Supabase e do Stripe para começar a cobrar.</div>' : ''}
+      ${!Billing.enforce ? '<div class="banner warn">Cobrança ainda não ativada: todas as funções estão liberadas para todos. As contas já funcionam.</div>' : ''}
       ${need ? `<div class="banner">“${esc(featureLabel(need))}” faz parte do plano ${esc(PLANS[Billing.minPlan(need)].label)}.</div>` : ''}
       ${tab !== 'free' ? `<div class="periods">${opts.map((o, i) => `<button class="period${i === choice ? ' on' : ''}" data-i="${i}" aria-pressed="${i === choice}"><span class="ptag">${esc(o.tag || ' ')}</span><b>${o.months} ${o.months > 1 ? 'meses' : 'mês'}</b><span class="ptotal">${esc(o.total)}</span><span class="muted">${esc(o.perMonth)} / mês</span><span class="radio" aria-hidden="true"></span></button>`).join('')}</div>` : ''}
       <ul class="pfeat">${P.features.map(f => `<li>${esc(f)}</li>`).join('')}</ul>
@@ -102,7 +102,7 @@ SCREENS.plans = async ({ need } = {}) => {
     $$('[data-t]').forEach(b => b.onclick = () => { tab = b.dataset.t; choice = 1; draw(); });
     $$('[data-i]').forEach(b => b.onclick = () => { choice = +b.dataset.i; draw(); });
     const c = $('#cont'); if (c) c.onclick = async () => {
-      if (!Billing.enabled) return toast('Pagamentos ainda não configurados.', 3500);
+      if (!Billing.enforce) return toast('Pagamentos ainda não ativados. Todas as funções já estão liberadas.', 4000);
       if (!u) { toast('Entre ou crie sua conta para assinar'); $('#acct').scrollIntoView({ behavior: 'smooth' }); return; }
       c.disabled = true; c.textContent = 'Abrindo pagamento…';
       try { await Billing.checkout(opts[choice].key); } catch (e) { toast('Não foi possível abrir o pagamento: ' + e.message, 5000); c.disabled = false; c.textContent = 'Continuar'; }

@@ -1,12 +1,14 @@
 /* TEAMRM - Posture & Correction — configuração pública do app.
    Tudo aqui é visível no navegador: nunca coloque chaves secretas (Stripe sk_..., service_role) neste arquivo.
-   Enquanto supabaseUrl estiver vazio, a cobrança fica desligada e todas as funções ficam liberadas. */
+   Enquanto billingActive for false, nada é cobrado nem bloqueado (o login já funciona). */
 'use strict';
 
 const TEAMRM_CONFIG = {
   // Supabase → Project Settings → API: "Project URL" e "anon public"
-  supabaseUrl: '',
-  supabaseAnonKey: '',
+  supabaseUrl: 'https://eqlrdlqiboctbqrisyrg.supabase.co',
+  supabaseAnonKey: 'sb_publishable_O4GKXFbW689i_9ZHi1h4rQ_nrbin7CZ',   // chave pública (publishable): pode ficar no código
+  // false = login funciona, mas nada é cobrado nem bloqueado. Mude para true quando o Stripe estiver configurado.
+  billingActive: false,
   appUrl: 'https://rosymartinspersonal-glitch.github.io/prumo-postural/',
   trialDays: 7,
   // Preços exibidos na tela de planos. Os valores cobrados de verdade são os cadastrados no Stripe:
