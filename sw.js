@@ -1,6 +1,6 @@
 // Prumo Postural — service worker: funciona offline depois da primeira visita.
-const VERSION = 'prumo-v1';
-const SHELL = ['./', 'index.html', 'app.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
+const VERSION = 'prumo-v2';
+const SHELL = ['./', 'index.html', 'js/core.js', 'js/views.js', 'js/detect.js', 'js/draw.js', 'js/content.js', 'js/screens.js', 'js/video.js', 'js/pdf.js', 'js/main.js', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

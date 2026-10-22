@@ -137,6 +137,37 @@ ul.find{margin:0;padding-left:18px;display:grid;gap:4px}
 .modal .panel{max-width:440px;width:100%;display:grid;gap:14px}
 .empty{text-align:center;padding:36px 16px;display:grid;gap:10px;justify-items:center}
 footer.disc{max-width:1080px;margin:0 auto;padding-block:0 32px;padding-left:var(--gut);padding-right:var(--gutr);font-size:.8rem;color:var(--muted)}
+
+/* Paletas de tema */
+:root[data-palette="oceano"]{--brand:#0B4F5C;--accent:#0E7C86}
+:root[data-palette="grafite"]{--brand:#24272E;--accent:#3B4A63}
+:root[data-palette="vinho"]{--brand:#5A1A32;--accent:#9B2C4F}
+@media (prefers-color-scheme: dark){
+  :root[data-palette="oceano"]:not([data-theme="light"]){--brand:#0A3540;--accent:#4CC9D3}
+  :root[data-palette="grafite"]:not([data-theme="light"]){--brand:#1B1D22;--accent:#A8B4CC}
+  :root[data-palette="vinho"]:not([data-theme="light"]){--brand:#3A1222;--accent:#F08AAA}}
+:root[data-theme="dark"][data-palette="oceano"]{--brand:#0A3540;--accent:#4CC9D3}
+:root[data-theme="dark"][data-palette="grafite"]{--brand:#1B1D22;--accent:#A8B4CC}
+:root[data-theme="dark"][data-palette="vinho"]{--brand:#3A1222;--accent:#F08AAA}
+
+.top nav{overflow-x:auto;min-width:0;scrollbar-width:none}
+.top nav button{white-space:nowrap}
+.kinds{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:10px}
+.kind{display:grid;grid-template-columns:44px 1fr;gap:12px;align-items:start;text-align:left;padding:12px;border:1px solid var(--line);border-radius:var(--r);background:var(--bg);cursor:pointer;font-size:.9rem}
+.kind:hover{border-color:var(--accent)}
+.kicon{width:44px;height:44px;border-radius:10px;background:var(--brand);color:#fff;display:grid;place-items:center;font:700 1.2rem var(--font-display)}
+.tipday{border-left:3px solid var(--accent);padding:8px 12px;background:var(--surface);border-radius:0 8px 8px 0;font-size:.92rem}
+.exgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px}
+.excard{background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:12px;display:grid;gap:4px;align-content:start;font-size:.9rem}
+.excard ol{margin:4px 0 0;padding-left:18px;display:grid;gap:2px}
+svg.chart{width:100%;height:auto;display:block;touch-action:pan-y}
+svg.chart .ax{font:11px var(--font-data);fill:var(--muted)}
+.tip{position:absolute;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:.8rem;pointer-events:none;box-shadow:0 4px 14px rgba(0,0,0,.12);white-space:nowrap}
+.banner.bad{background:var(--bad-bg);color:var(--bad);font-weight:500}
+.pt-row{display:flex;align-items:center;gap:2px}
+.pt-row .pt{flex:1;min-width:0}
+td .ref.ex{color:var(--ink);opacity:.8;margin-top:2px}
+details summary{cursor:pointer}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 <!--ARTIFACT-END-->
@@ -149,11 +180,21 @@ footer.disc{max-width:1080px;margin:0 auto;padding-block:0 32px;padding-left:var
   </button>
   <nav>
     <button id="nav-patients" aria-current="page">Pacientes</button>
+    <button id="nav-ex">Exercícios</button>
+    <button id="nav-help">Ajuda</button>
     <button id="nav-settings">Configurações</button>
   </nav>
 </div></header>
 <main id="app" aria-live="polite"></main>
 <footer class="disc">O Prumo é uma ferramenta de apoio à avaliação. Os resultados devem ser interpretados por um profissional habilitado e não constituem diagnóstico.</footer>
-<script src="app.js"></script>
+<script src="js/core.js"></script>
+<script src="js/views.js"></script>
+<script src="js/detect.js"></script>
+<script src="js/draw.js"></script>
+<script src="js/content.js"></script>
+<script src="js/screens.js"></script>
+<script src="js/video.js"></script>
+<script src="js/pdf.js"></script>
+<script src="js/main.js"></script>
 </body>
 </html>
