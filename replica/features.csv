@@ -6,54 +6,56 @@ Alinhamento corporal e inclinação da cabeça,postural,must,yes,yes,
 Simetria dos ombros,postural,must,yes,yes,
 Inclinação pélvica e medida das EIAS,postural,must,yes,yes,
 Ângulos dos joelhos D e E,postural,must,yes,yes,ângulo Q e perfil
-Rotação dos pés D e E,postural,should,yes,no,
-Inclinação do tórax (caixa torácica),postural,should,yes,no,
+Rotação dos pés D e E,postural,should,yes,yes,pontos opcionais do 2º dedo na vista anterior
+Inclinação do tórax (caixa torácica),postural,should,yes,yes,"manúbrio–rebordo costal, opcional nas laterais"
 Sinalização automática vs. normas clínicas,resultados,must,yes,yes,
-Texto explicativo dos resultados,resultados,must,yes,partial,falta interpretação por medida
-Avaliação rápida (Quick Analysis),postural,should,yes,no,
-Flexão anterior de tronco - teste de Adams (rotação do tronco),adams,must,yes,no,pedido explícito
-Flexão anterior de tronco - flexibilidade estática,adams,must,yes,no,
+Texto explicativo dos resultados,resultados,must,yes,yes,interpretação por medida na tela e no PDF
+Avaliação rápida (Quick Analysis),postural,should,yes,yes,anterior + lateral direita
+Flexão anterior de tronco - teste de Adams (rotação do tronco),adams,must,yes,yes,ATR torácica/toracolombar/lombar; alerta de encaminhamento ≥ 7°
+Flexão anterior de tronco - flexibilidade estática,adams,must,yes,yes,"tronco–coxa, dedo–chão (cm), joelhos, curvatura"
 Ângulo craniovertebral,cabeça-pescoço,must,yes,yes,
-Índice de anteriorização da cabeça,cabeça-pescoço,should,yes,partial,só em cm com régua
-Módulo cabeça-pescoço dedicado,cabeça-pescoço,should,yes,no,
-Flexão lateral e rotação cervical,cabeça-pescoço,should,yes,no,
-ATSI (índice de simetria anterior do tronco),tronco,should,yes,no,
-POTSI (índice de simetria posterior do tronco),tronco,should,yes,no,
-Índices de simetria ombro/cintura/quadril,tronco,should,yes,no,
-Proporção áurea com sobreposição,proporção,should,yes,no,
-Simetria facial,face,should,yes,no,
-Teste de valgo/varo de joelho,joelhos,should,yes,partial,só ângulo Q na vista anterior
-Amplitude de movimento - goniômetro em foto,adm,must,yes,no,
-Protocolos de ADM personalizados com comentários,adm,should,yes,no,
-Ângulos livres entre pontos escolhidos,adm,should,yes,no,
-Análise dinâmica em vídeo (lateral),vídeo,should,yes,no,
-Gráficos temporais quadro a quadro,vídeo,should,yes,no,
-Resultado em vídeo + PDF da análise dinâmica,vídeo,could,yes,no,
-Marcadores verdes - detecção automática em foto,marcação,should,yes,no,
-Marcadores verdes - rastreio em vídeo,vídeo,could,yes,no,
+Índice de anteriorização da cabeça,cabeça-pescoço,should,yes,yes,índice % e distância em cm
+Módulo cabeça-pescoço dedicado,cabeça-pescoço,should,yes,yes,perfil + frontal
+Flexão lateral e rotação cervical,cabeça-pescoço,should,yes,yes,"goniômetro (inclinação, rotação, flexão, extensão)"
+ATSI (índice de simetria anterior do tronco),tronco,should,yes,yes,
+POTSI (índice de simetria posterior do tronco),tronco,should,yes,yes,
+Índices de simetria ombro/cintura/quadril,tronco,should,yes,yes,
+Proporção áurea com sobreposição,proporção,should,yes,yes,
+Simetria facial,face,should,yes,yes,
+Teste de valgo/varo de joelho,joelhos,should,yes,yes,eixo femorotibial + distâncias intercondilar/intermaleolar
+Amplitude de movimento - goniômetro em foto,adm,must,yes,yes,17 movimentos com referência AAOS
+Protocolos de ADM personalizados com comentários,adm,should,yes,yes,protocolos salvos em Configurações; comentário por movimento
+Ângulos livres entre pontos escolhidos,adm,should,yes,yes,
+Análise dinâmica em vídeo (lateral),vídeo,should,yes,yes,
+Gráficos temporais quadro a quadro,vídeo,should,yes,yes,
+Resultado em vídeo + PDF da análise dinâmica,vídeo,could,yes,yes,vídeo anotado (WebM/MP4) + PDF
+Marcadores verdes - detecção automática em foto,marcação,should,yes,yes,
+Marcadores verdes - rastreio em vídeo,vídeo,could,yes,yes,com previsão de velocidade e IA por quadro
 Detecção automática sem marcadores (IA),marcação,must,yes,yes,
 Modo semimanual (pré-posiciona e ajusta),marcação,must,yes,yes,
 Modo manual ponto a ponto,marcação,must,yes,yes,
-Remoção de fundo,marcação,could,yes,no,
+Remoção de fundo,marcação,could,yes,yes,
 Recorte/rotação da foto,captura,should,yes,yes,
 Régua automática / medidas lineares,marcação,should,yes,yes,
 Máscara no rosto,privacidade,should,yes,yes,
 Relatório PDF com explicação,relatório,must,yes,yes,
 PDF personalizado (logo e dados da clínica),relatório,must,yes,yes,
-PDF personalizado (banner e cores),relatório,could,yes,no,
+PDF personalizado (banner e cores),relatório,could,yes,yes,cor do banner e frase; seções opcionais
 IMC no relatório,relatório,should,yes,yes,
-Salvar resultados em JPEG,relatório,should,yes,no,
-Dicas diárias de postura,conteúdo,could,yes,no,
-Exercícios de correção postural,conteúdo,should,yes,no,
-Temas de cor (4 paletas),interface,could,yes,no,
-FAQ / ajuda,interface,could,yes,no,
-Acompanhamento de medidas repetidas,evolução,should,yes,partial,comparação existe; falta gráfico no tempo
+Salvar resultados em JPEG,relatório,should,yes,yes,
+Dicas diárias de postura,conteúdo,could,yes,yes,
+Exercícios de correção postural,conteúdo,should,yes,yes,
+Temas de cor (4 paletas),interface,could,yes,yes,
+FAQ / ajuda,interface,could,yes,yes,
+Acompanhamento de medidas repetidas,evolução,should,yes,yes,gráfico de evolução por medida na ficha do paciente
 Dados só no aparelho,privacidade,must,yes,yes,
 Celular e tablet,plataforma,must,yes,yes,PWA
-Interface multilíngue,interface,could,yes,skip,uso em clínica no Brasil; textos centralizados para traduzir depois
+Interface multilíngue,interface,could,yes,skip,não implementado: app de uso na clínica só em português; fazer se for atender pacientes em outro idioma
 Assinaturas e planos pagos,negócio,skip,yes,skip,app de uso próprio da clínica
 Validação científica publicada (35+ artigos),credibilidade,skip,yes,skip,pertence ao original; não é função de software
 Cadastro de pacientes com histórico,pacientes,should,no,yes,a mais que o original
 Comparação antes × depois,evolução,should,no,yes,a mais que o original
 Backup e restauração,privacidade,should,no,yes,a mais que o original
 Funciona offline,plataforma,should,no,yes,a mais que o original
+Classificação postural de Kendall,resultados,should,no,yes,a mais que o original
+Exercícios sugeridos a partir dos achados,conteúdo,should,no,yes,a mais que o original

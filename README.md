@@ -1,77 +1,81 @@
 # Prumo Postural
 
 Avaliação postural por fotogrametria, direto no navegador do celular, tablet ou computador.
-Fotografe as quatro vistas do paciente, marque os pontos anatômicos (com ajuda de IA ou à mão)
-e receba ângulos, desvios sinalizados e um relatório em PDF com a identidade da sua clínica.
+Fotografe o paciente, marque os pontos anatômicos (com IA, com marcadores verdes ou à mão) e receba
+ângulos, índices e desvios com interpretação, exercícios sugeridos e relatório em PDF com a
+identidade da sua clínica.
 
-**Os dados nunca saem do aparelho.** Pacientes, fotos e avaliações ficam no armazenamento local
-do navegador (IndexedDB). Não há servidor nem conta.
+**App:** https://rosymartinspersonal-glitch.github.io/prumo-postural/
 
-## O que o app faz
+**Os dados nunca saem do aparelho.** Pacientes, fotos e avaliações ficam no armazenamento local do
+navegador (IndexedDB). Não há servidor nem conta.
 
-| Área | Recursos |
+## Tipos de avaliação
+
+| Avaliação | O que mede |
 | --- | --- |
-| Pacientes | cadastro com idade, altura, peso, IMC e queixa principal; histórico de avaliações |
-| Captura | câmera ou galeria, 4 vistas (anterior, posterior, lateral D e E), ajuste de rotação |
-| Marcação | detecção automática (MediaPipe Pose), posição‑modelo, arrastar com lupa, zoom, régua de calibração, ocultar rosto |
-| Medidas | ver tabela abaixo, com faixa de referência e situação (normal / atenção / alterado) |
-| Relatório | PDF com logo, dados do profissional e registro, fotos anotadas, achados e conclusão |
-| Evolução | comparação antes × depois entre avaliações, com indicação de melhora ou piora |
-| Backup | exportar e restaurar tudo em um arquivo JSON |
-| Offline | instalável como app (PWA); depois da primeira abertura funciona sem internet |
+| Postural completa | 4 vistas: cabeça, ombros, escápulas, pelve, joelhos (ângulo Q e perfil), retropé, rotação dos pés, tórax, CVA, alinhamento; classificação postural de Kendall |
+| Avaliação rápida | Vista anterior + lateral direita |
+| **Flexão anterior de tronco** | Teste de Adams: rotação do tronco (ATR) torácica, toracolombar e lombar, com alerta de encaminhamento a partir de 7°. Flexibilidade: ângulo tronco–coxa, distância dedo–chão em cm, joelhos e curvatura dorsal |
+| Cabeça e pescoço | CVA, inclinação e rotação craniana, ângulo do ombro, índice de anteriorização; frontal com inclinação, desvio e simetria dos ombros |
+| Simetria de tronco | ATSI e POTSI com componentes (C7/incisura, axilas, cintura, ombros) e simetria do quadril |
+| Joelhos: valgo e varo | Eixo femorotibial D/E, distâncias intercondilar e intermaleolar |
+| Proporção áurea | Razões corporais vs. φ = 1,618, cânone de cabeças, régua áurea na foto |
+| Simetria facial | Detecção por malha facial; inclinações, desvio do mento e do nariz, índice de assimetria, terços da face |
+| Amplitude de movimento | Goniômetro em foto: 17 movimentos com referência AAOS, ângulos livres e protocolos próprios |
+| Análise dinâmica em vídeo | 7 ângulos quadro a quadro (IA ou marcadores verdes), gráficos temporais, quadros-chave, vídeo anotado e PDF |
 
-### Medidas por vista
+## Recursos
 
-- **Anterior**: inclinação da cabeça, nivelamento dos ombros, nivelamento pélvico (EIAS),
-  ângulo Q aproximado D/E (valgo/varo), alinhamento corporal frontal. Com régua: diferenças em cm.
-- **Posterior**: ombros, escápulas, pelve (EIPS), desvio do tronco C7–sacro, retropé D/E.
-- **Laterais**: ângulo craniovertebral, inclinação pélvica (EIAS–EIPS), alinhamento do tronco,
-  ângulo do joelho (flexo/recurvato), alinhamento corporal acrômio–maléolo.
-
-As faixas de referência são valores usuais da literatura de fotogrametria clínica e servem de
-triagem. Ajuste a interpretação ao seu protocolo.
+- **Marcação**: IA (MediaPipe Pose e Face, código aberto), posição-modelo para ajuste, manual ponto a ponto, marcadores verdes, lupa e zoom, régua de calibração para medidas em cm.
+- **Foto**: câmera ou galeria, rotação e recorte, remoção de fundo, máscara no rosto.
+- **Resultados**: situação de cada medida (normal, atenção, alterado), interpretação em texto e principais achados. Inclui exercícios sugeridos e imagens anotadas em JPEG.
+- **Relatório PDF**: logo, banner com cor e frase, dados do profissional e do paciente, IMC, fotos anotadas, interpretação, exercícios, conclusão e assinatura.
+- **Evolução**: comparação antes × depois e gráfico de cada medida ao longo do tempo.
+- **Conteúdo**: biblioteca de exercícios, dica do dia, ajuda com protocolo de fotografia.
+- **Interface**: 4 temas de cor, modo claro e escuro, instalável e funciona offline.
+- **Backup**: exportar e restaurar tudo em JSON.
 
 ## Como usar
 
-1. Abra o app e cadastre o paciente.
-2. Em **Nova avaliação**, fotografe cada vista com o paciente em pé, câmera parada na altura do
-   umbigo, a cerca de 3 m, corpo inteiro no quadro.
-3. Toque em **Detectar com IA** e confira cada ponto com o zoom. Pontos ósseos (EIAS, EIPS, C7)
-   quase sempre precisam de ajuste: o modelo estima centros articulares.
-4. Veja os **Resultados**, escreva a conclusão e exporte o PDF.
+1. Cadastre o paciente.
+2. Toque em **Nova avaliação** e escolha o tipo.
+3. Fotografe cada vista seguindo a orientação da tela (câmera parada, sem zoom).
+4. Toque em **Detectar com IA** e confira cada ponto com o zoom.
+5. Veja os **Resultados**, escreva a conclusão e exporte o PDF.
 
-Para medidas em centímetros, deixe uma régua ou fio de prumo marcado no mesmo plano do paciente
-e ative **Calibrar com régua** na marcação.
+## Estrutura do código
 
-## Hospedagem (GitHub Pages)
-
-O app é estático: `index.html`, `app.js`, `sw.js`, `manifest.webmanifest` e ícones.
-Em *Settings → Pages*, escolha *Deploy from a branch*, branch `main`, pasta `/ (root)`.
-O endereço fica `https://<usuário>.github.io/prumo-postural/`.
+```
+index.html        página, estilos e ordem dos scripts
+js/core.js        utilidades, armazenamento local, geometria
+js/views.js       vistas, pontos anatômicos, medidas, tipos de avaliação, interpretação
+js/detect.js      IA (pose, rosto, segmentação) e marcadores verdes
+js/draw.js        linhas e ângulos sobre a foto, dados de exemplo
+js/content.js     exercícios, dicas e ajuda
+js/screens.js     telas
+js/video.js       análise dinâmica em vídeo
+js/pdf.js         relatório PDF
+js/main.js        inicialização
+sw.js             modo offline
+tests/            testes das fórmulas (node tests/medidas.test.js)
+replica/          engenharia reversa e benchmark contra o APECS
+```
 
 Para rodar localmente: `python3 -m http.server 8000` e abra `http://localhost:8000`.
 
-## Testes
+## Benchmark
 
-```
-node tests/medidas.test.js
-```
-
-Confere as fórmulas de ângulo com casos conhecidos (assimetrias, espelhamento das laterais,
-valgo/varo, calibração).
-
-## Privacidade e LGPD
-
-Fotos e dados de saúde ficam somente no navegador onde foram criados. O repositório contém
-apenas o código. Faça backups regulares em **Configurações** e guarde‑os em local seguro.
+`replica/parity.md`: 100% das 51 funções do APECS contadas (antes: 52,6%), mais 6 funções que o
+APECS não tem. Fica de fora a interface em outros idiomas.
 
 ## Aviso
 
 Ferramenta de apoio à avaliação. Medidas de fotogrametria 2D dependem da qualidade da foto e da
-marcação. Os resultados devem ser interpretados por profissional habilitado e não constituem
-diagnóstico.
+marcação, e o método ainda não foi validado contra radiografia. Os resultados devem ser
+interpretados por profissional habilitado e não constituem diagnóstico.
 
 ## Origem
 
 Funcionalidades inspiradas na análise pública do APECS (Saneftec). Código, textos, nome e
-identidade visual são originais. O mapa de engenharia reversa está em `replica/`.
+identidade visual são originais.
