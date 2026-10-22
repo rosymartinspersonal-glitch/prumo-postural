@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <!--ARTIFACT-START-->
-<title>Prumo Postural</title>
+<title>TEAMRM - Posture &amp; Correction</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="description" content="Avaliação postural por fotogrametria: 4 vistas, pontos anatômicos automáticos, ângulos e relatório PDF. Dados ficam no aparelho.">
+<meta name="description" content="TEAMRM - Posture & Correction: avaliação postural por fotogrametria: 4 vistas, pontos anatômicos automáticos, ângulos e relatório PDF. Dados ficam no aparelho.">
 <meta name="theme-color" content="#1D2A6B">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -49,7 +49,9 @@ button,input,select,textarea{font:inherit;color:inherit}
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--brand);color:#fff}
 .top-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:12px;padding-block:10px;padding-left:var(--gut);padding-right:var(--gutr)}
 .logo{display:flex;align-items:center;gap:10px;background:none;border:0;color:#fff;cursor:pointer;padding:0}
-.logo b{font:780 1.15rem/1 var(--font-display);font-stretch:80%;letter-spacing:.01em}
+.logo .brand{display:grid;text-align:left;line-height:1}
+.logo b{font:780 1.15rem/1 var(--font-display);font-stretch:80%;letter-spacing:.02em}
+.logo small{font:500 .62rem/1.3 var(--font-data);letter-spacing:.06em;text-transform:uppercase;color:#C9D0F5;white-space:nowrap}
 .logo svg{width:22px;height:22px}
 .top nav{margin-left:auto;display:flex;gap:4px}
 .top nav button{background:transparent;border:0;color:#C9D0F5;padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:500}
@@ -176,7 +178,7 @@ details summary{cursor:pointer}
 <header class="top"><div class="top-in">
   <button class="logo" id="go-home" aria-label="Início">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 2v11"/><path d="M8 13h8l-4 9z" fill="currentColor"/></svg>
-    <b>PRUMO</b>
+    <span class="brand"><b>TEAMRM</b><small>Posture &amp; Correction</small></span>
   </button>
   <nav>
     <button id="nav-patients" aria-current="page">Pacientes</button>
@@ -186,7 +188,7 @@ details summary{cursor:pointer}
   </nav>
 </div></header>
 <main id="app" aria-live="polite"></main>
-<footer class="disc">O Prumo é uma ferramenta de apoio à avaliação. Os resultados devem ser interpretados por um profissional habilitado e não constituem diagnóstico.</footer>
+<footer class="disc">O TEAMRM - Posture &amp; Correction é uma ferramenta de apoio à avaliação. Os resultados devem ser interpretados por um profissional habilitado e não constituem diagnóstico.</footer>
 <script src="js/core.js"></script>
 <script src="js/views.js"></script>
 <script src="js/detect.js"></script>

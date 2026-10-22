@@ -1,4 +1,4 @@
-/* Prumo Postural — exercícios, dicas e ajuda. Texto original; orientações gerais, a prescrição é do profissional. */
+/* TEAMRM - Posture & Correction — exercícios, dicas e ajuda. Texto original; orientações gerais, a prescrição é do profissional. */
 'use strict';
 
 const EXERCISES = [

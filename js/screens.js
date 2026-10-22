@@ -1,4 +1,4 @@
-/* Prumo Postural — telas. */
+/* TEAMRM - Posture & Correction — telas. */
 'use strict';
 
 const app = $('#app');
@@ -553,12 +553,12 @@ SCREENS.compare = async ({ pid, a: ida, b: idb }) => {
 SCREENS.exercises = async () => {
   const areas = [...new Set(EXERCISES.map(e => e.area))];
   app.innerHTML = `<div class="stack" style="gap:4px"><span class="eyebrow">Biblioteca</span><h1>Exercícios de correção postural</h1></div>
-    <p class="muted" style="margin:0;max-width:70ch">Exercícios de referência para os achados mais comuns. Nos resultados de cada avaliação, o Prumo sugere os que se aplicam aos desvios encontrados.</p>
+    <p class="muted" style="margin:0;max-width:70ch">Exercícios de referência para os achados mais comuns. Nos resultados de cada avaliação, o TEAMRM sugere os que se aplicam aos desvios encontrados.</p>
     <div class="tipday"><span class="eyebrow">Dica do dia</span><p style="margin:4px 0 0">${esc(tipOfDay())}</p></div>
     ${areas.map(ar => `<section class="stack"><h2>${esc(ar)}</h2><div class="exgrid">${EXERCISES.filter(e => e.area === ar).map(e => `<div class="excard"><b>${esc(e.name)}</b><span class="muted" style="font-size:.82rem">${esc(e.dose)}</span><ol>${e.steps.map(s => `<li>${esc(s)}</li>`).join('')}</ol></div>`).join('')}</div></section>`).join('')}`;
 };
 SCREENS.help = async () => {
-  app.innerHTML = `<div class="stack" style="gap:4px"><span class="eyebrow">Ajuda</span><h1>Como usar o Prumo</h1></div>
+  app.innerHTML = `<div class="stack" style="gap:4px"><span class="eyebrow">Ajuda</span><h1>Como usar o TEAMRM</h1></div>
     <div class="stack">${HELP.map(([q, r]) => `<details class="panel"><summary><b>${esc(q)}</b></summary><p style="margin:10px 0 0">${esc(r)}</p></details>`).join('')}</div>
     <section class="panel stack"><h2>Protocolo de fotografia por teste</h2>${Object.entries(KINDS).filter(([, K]) => K.views).map(([, K]) => `<div><b>${esc(K.label)}</b><ul style="margin:4px 0 0;padding-left:18px">${K.views.map(v => `<li><b>${esc(VIEWS[v].label)}:</b> ${esc(VIEWS[v].hint)}</li>`).join('')}</ul></div>`).join('')}</section>`;
 };
@@ -644,13 +644,13 @@ SCREENS.settings = async () => {
   };
   const lr = $('#s-logo-rm'); if (lr) lr.onclick = async () => { S.logo = ''; await Store.put('settings', S); go('settings'); };
   $('#bk-out').onclick = async () => {
-    const data = { app: 'prumo-postural', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments') };
-    downloadBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), `prumo-backup-${new Date().toISOString().slice(0, 10)}.json`); toast('Backup exportado');
+    const data = { app: 'teamrm-posture', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments') };
+    downloadBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), `teamrm-backup-${new Date().toISOString().slice(0, 10)}.json`); toast('Backup exportado');
   };
   $('#bk-in').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     try {
-      const d = JSON.parse(await f.text()); if (d.app !== 'prumo-postural') throw new Error('arquivo não é um backup do Prumo');
+      const d = JSON.parse(await f.text()); if (!['teamrm-posture', 'prumo-postural'].includes(d.app)) throw new Error('arquivo não é um backup do TEAMRM');
       if (!(await confirmBox('Restaurar backup?', `${d.patients.length} pacientes e ${d.assessments.length} avaliações serão adicionados ou substituídos neste aparelho.`, 'Restaurar'))) return;
       for (const p of d.patients) await Store.put('patients', p);
       for (const a of d.assessments) await Store.put('assessments', a);

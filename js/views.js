@@ -1,4 +1,4 @@
-/* Prumo Postural — vistas, pontos anatômicos, medidas e tipos de avaliação.
+/* TEAMRM - Posture & Correction — vistas, pontos anatômicos, medidas e tipos de avaliação.
    Cada vista define:
    points  [chave, nome, opcional?]
    tpl     posição-modelo (frame 'body' = unidades da altura do corpo; 'image' = fração da foto)

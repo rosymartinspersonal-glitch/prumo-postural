@@ -1,4 +1,4 @@
-# Benchmark Prumo Postural × APECS
+# Benchmark TEAMRM - Posture & Correction × APECS
 
 Data: 22/10/2026 · Fonte das funções do APECS: site oficial, App Store e Google Play (veja `recon.md`).
 
@@ -15,11 +15,11 @@ Fora da conta, de propósito:
 - **Assinaturas pagas**: não se aplica a um app de uso próprio da clínica.
 - **35+ artigos de validação**: pertencem ao APECS, não são uma função de software.
 
-**Paridade de funções não é paridade de validação.** O APECS foi comparado com radiografias em estudos publicados; o Prumo ainda não. Para usar as medidas em pesquisa ou laudos, valide o método na sua clínica (por exemplo, repetibilidade entre avaliadores).
+**Paridade de funções não é paridade de validação.** O APECS foi comparado com radiografias em estudos publicados; o TEAMRM ainda não. Para usar as medidas em pesquisa ou laudos, valide o método na sua clínica (por exemplo, repetibilidade entre avaliadores).
 
 ## Cobertura por área
 
-| Área | Funções do APECS | Como o Prumo faz |
+| Área | Funções do APECS | Como o TEAMRM faz |
 | --- | --- | --- |
 | Postural | 4 vistas, alinhamento, ombros, pelve, joelhos, pés, tórax, avaliação rápida | 4 vistas com 24 medidas; pés e tórax opcionais; modo rápido com 2 vistas |
 | **Flexão anterior de tronco** | Teste de Adams e flexibilidade | ATR torácica, toracolombar e lombar com alerta de encaminhamento ≥ 7°; ângulo tronco–coxa, dedo–chão em cm, controle dos joelhos e curvatura dorsal |
@@ -36,7 +36,7 @@ Fora da conta, de propósito:
 
 ## Diferenças de comportamento
 
-| Fluxo | APECS | Prumo | Decisão |
+| Fluxo | APECS | TEAMRM | Decisão |
 | --- | --- | --- | --- |
 | Salvar resultado | PDF apagado se não for salvo (reclamação na Play Store) | Toda avaliação fica no histórico do paciente | manter |
 | Mover ponto manual | Toque longo antes de arrastar (reclamação na App Store) | Arrasta direto, com lupa | manter |

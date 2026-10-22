@@ -1,4 +1,4 @@
-/* Prumo Postural — detecção automática.
+/* TEAMRM - Posture & Correction — detecção automática.
    MediaPipe Tasks Vision (código aberto, Apache 2.0): pose do corpo, malha facial e segmentação.
    Marcadores verdes: detecção por cor, sem IA.                                                   */
 'use strict';

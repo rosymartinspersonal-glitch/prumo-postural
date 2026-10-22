@@ -1,4 +1,4 @@
-/* Prumo Postural — desenho das linhas e ângulos sobre a foto, imagens de exemplo. */
+/* TEAMRM - Posture & Correction — desenho das linhas e ângulos sobre a foto, imagens de exemplo. */
 'use strict';
 
 const imgCache = new Map();

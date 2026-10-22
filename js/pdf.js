@@ -1,4 +1,4 @@
-/* Prumo Postural — relatório PDF (jsPDF). */
+/* TEAMRM - Posture & Correction — relatório PDF (jsPDF). */
 'use strict';
 
 const pdfSafe = s => String(s ?? '').replace(/≤ ?/g, 'até ').replace(/≥ ?/g, 'mín. ').replace(/[–—]/g, '-').replace(/[✓φ]/g, m => m === 'φ' ? 'phi' : '').replace(/×/g, 'x').replace(/÷/g, '/').replace(/…/g, '...');
@@ -19,7 +19,7 @@ async function exportPDF(a, p) {
   const bc = hexRgb(S.pdfColor), light = (bc[0] * 299 + bc[1] * 587 + bc[2] * 114) / 1000 > 150;
   doc.setFillColor(...bc); doc.rect(0, 0, W, 28, 'F');
   doc.setTextColor(...(light ? INK : [255, 255, 255])); doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
-  doc.text(pdfSafe(S.clinic || 'Avaliação postural'), M, 10);
+  doc.text(pdfSafe(S.clinic || 'TEAMRM - Posture & Correction'), M, 10);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
   if (S.pdfSubtitle) doc.text(pdfSafe(S.pdfSubtitle), M, 15);
   doc.text(pdfSafe([S.professional, S.registry].filter(Boolean).join(' · ')), M, S.pdfSubtitle ? 20 : 16);

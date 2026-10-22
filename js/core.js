@@ -1,4 +1,4 @@
-/* Prumo Postural — núcleo: utilidades, armazenamento local e geometria. */
+/* TEAMRM - Posture & Correction — núcleo: utilidades, armazenamento local e geometria. */
 'use strict';
 
 const $ = (s, r = document) => r.querySelector(s);

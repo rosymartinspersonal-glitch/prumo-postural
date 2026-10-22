@@ -1,4 +1,4 @@
-/* Prumo Postural — análise dinâmica em vídeo (vista lateral). */
+/* TEAMRM - Posture & Correction — análise dinâmica em vídeo (vista lateral). */
 'use strict';
 
 const VID_PTS = { orelha: [8, 7], ombro: [12, 11], cotovelo: [14, 13], punho: [16, 15], quadril: [24, 23], joelho: [26, 25], tornozelo: [28, 27], pe: [32, 31] };

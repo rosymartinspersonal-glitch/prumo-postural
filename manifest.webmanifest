@@ -1,6 +1,6 @@
 {
-  "name": "Prumo Postural",
-  "short_name": "Prumo",
+  "name": "TEAMRM - Posture & Correction",
+  "short_name": "TEAMRM",
   "description": "Avaliação postural por fotogrametria com relatório em PDF. Os dados ficam no aparelho.",
   "lang": "pt-BR",
   "start_url": "./",

@@ -1,4 +1,4 @@
-# Prumo Postural
+# TEAMRM - Posture & Correction
 
 Avaliação postural por fotogrametria, direto no navegador do celular, tablet ou computador.
 Fotografe o paciente, marque os pontos anatômicos (com IA, com marcadores verdes ou à mão) e receba

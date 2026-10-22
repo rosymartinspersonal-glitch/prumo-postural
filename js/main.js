@@ -1,4 +1,4 @@
-/* Prumo Postural — inicialização. */
+/* TEAMRM - Posture & Correction — inicialização. */
 'use strict';
 (async () => {
   for (const [id, name] of [['go-home', 'patients'], ['nav-patients', 'patients'], ['nav-ex', 'exercises'], ['nav-help', 'help'], ['nav-settings', 'settings']]) {
