@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<!--ARTIFACT-START-->
+<title>Prumo Postural</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Avaliação postural por fotogrametria: 4 vistas, pontos anatômicos automáticos, ângulos e relatório PDF. Dados ficam no aparelho.">
+<meta name="theme-color" content="#1D2A6B">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@75..100,500..800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: barra superior fixa + coluna única de trabalho (máx. 1080px); na marcação, canvas + lista lado a lado no desktop. */
+:root{
+  --bg:#F3F4F8; --surface:#FFFFFF; --sunken:#E8EAF1; --line:#D3D7E4;
+  --ink:#141A33; --muted:#5A6180; --accent:#2743D6; --accent-ink:#FFFFFF; --brand:#1D2A6B;
+  --ok:#17804A; --ok-bg:#E2F3E9; --warn:#A86200; --warn-bg:#FBEFD9; --bad:#C0283A; --bad-bg:#FBE3E6;
+  --font-display:"Archivo","Arial Narrow",system-ui,sans-serif;
+  --font-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-data:"IBM Plex Mono",ui-monospace,"SFMono-Regular",Menlo,monospace;
+  --r:10px; --gut:max(16px, env(safe-area-inset-left, 0px)); --gutr:max(16px, env(safe-area-inset-right, 0px));
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0E1120; --surface:#171B2E; --sunken:#1F2440; --line:#2C3253;
+  --ink:#E7E9F3; --muted:#9AA1C0; --accent:#7D92FF; --accent-ink:#0E1120; --brand:#1A2250;
+  --ok:#5BD08F; --ok-bg:#12301F; --warn:#F2B451; --warn-bg:#3A2A0E; --bad:#FF7A8A; --bad-bg:#3D1720; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0E1120; --surface:#171B2E; --sunken:#1F2440; --line:#2C3253;
+  --ink:#E7E9F3; --muted:#9AA1C0; --accent:#7D92FF; --accent-ink:#0E1120; --brand:#1A2250;
+  --ok:#5BD08F; --ok-bg:#12301F; --warn:#F2B451; --warn-bg:#3A2A0E; --bad:#FF7A8A; --bad-bg:#3D1720; color-scheme:dark}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 var(--font-body);-webkit-font-smoothing:antialiased}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--brand)}
+h1,h2,h3{font-family:var(--font-display);font-stretch:85%;letter-spacing:-.01em;text-wrap:balance;margin:0;line-height:1.15}
+h1{font-size:1.75rem;font-weight:750} h2{font-size:1.25rem;font-weight:700} h3{font-size:1rem;font-weight:650}
+.num,.mono{font-family:var(--font-data);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.eyebrow{font:500 .72rem/1 var(--font-data);text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Barra superior */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--brand);color:#fff}
+.top-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;gap:12px;padding-block:10px;padding-left:var(--gut);padding-right:var(--gutr)}
+.logo{display:flex;align-items:center;gap:10px;background:none;border:0;color:#fff;cursor:pointer;padding:0}
+.logo b{font:780 1.15rem/1 var(--font-display);font-stretch:80%;letter-spacing:.01em}
+.logo svg{width:22px;height:22px}
+.top nav{margin-left:auto;display:flex;gap:4px}
+.top nav button{background:transparent;border:0;color:#C9D0F5;padding:8px 10px;border-radius:8px;cursor:pointer;font-weight:500}
+.top nav button[aria-current="page"]{color:#fff;background:rgba(255,255,255,.12)}
+
+main{max-width:1080px;margin:0 auto;padding-block:20px 64px;padding-left:var(--gut);padding-right:var(--gutr);display:grid;gap:20px}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+.spread{justify-content:space-between}
+.stack{display:grid;gap:12px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:16px}
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:9px 14px;border-radius:8px;cursor:pointer;font-weight:500;text-decoration:none;min-height:40px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:5px 10px;min-height:32px;font-size:.88rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+label.f{display:grid;gap:4px;font-size:.85rem;color:var(--muted);min-width:0}
+label.f input,label.f select,label.f textarea{border:1px solid var(--line);background:var(--bg);border-radius:8px;padding:9px 10px;color:var(--ink);font-size:.95rem;width:100%}
+.grid-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px}
+.search{flex:1;min-width:180px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:10px 12px}
+
+/* Lista de pacientes */
+.plist{display:grid;border:1px solid var(--line);border-radius:var(--r);background:var(--surface);overflow:hidden}
+.prow{display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;padding:12px 16px;border:0;border-top:1px solid var(--line);background:none;text-align:left;cursor:pointer;width:100%}
+.prow:first-child{border-top:0}
+.prow:hover{background:var(--sunken)}
+.av{width:40px;height:40px;border-radius:50%;background:var(--sunken);display:grid;place-items:center;font:600 .9rem var(--font-display);color:var(--accent)}
+.tag{display:inline-block;font:500 .7rem/1 var(--font-data);text-transform:uppercase;letter-spacing:.06em;padding:4px 6px;border-radius:4px;background:var(--sunken);color:var(--muted);vertical-align:middle}
+
+/* Status */
+.st{display:inline-flex;align-items:center;gap:6px;font:500 .78rem/1 var(--font-body);padding:4px 8px;border-radius:999px;white-space:nowrap}
+.st::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
+.st.ok{color:var(--ok);background:var(--ok-bg)} .st.warn{color:var(--warn);background:var(--warn-bg)} .st.bad{color:var(--bad);background:var(--bad-bg)} .st.na{color:var(--muted);background:var(--sunken)}
+
+/* Vistas */
+.views{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+@media (max-width:760px){.views{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.slot{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);overflow:hidden;display:grid;grid-template-rows:auto 1fr auto}
+.slot .thumb{aspect-ratio:3/4;background:var(--sunken) repeating-linear-gradient(90deg,transparent 0 23px,var(--line) 23px 24px);display:grid;place-items:center;position:relative;max-width:100%}
+.slot .thumb img,.slot .thumb canvas{width:100%;height:100%;object-fit:contain;display:block}
+.slot .thumb .plumb{position:absolute;inset:0 auto 0 50%;border-left:1px dashed var(--muted);opacity:.5}
+.slot .meta{padding:10px 12px;display:grid;gap:6px}
+.slot .acts{display:flex;gap:6px;padding:0 12px 12px;flex-wrap:wrap}
+
+/* Marcação */
+.mark{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+@media (max-width:860px){.mark{grid-template-columns:minmax(0,1fr)}}
+.stage{position:relative;background:#0B0E1A;border-radius:var(--r);overflow:hidden;touch-action:none;user-select:none}
+.stage canvas{display:block;width:100%;height:auto;cursor:crosshair}
+.loupe{position:absolute;top:10px;left:10px;width:132px;height:132px;border-radius:50%;border:2px solid #fff;box-shadow:0 4px 18px rgba(0,0,0,.5);pointer-events:none}
+.tools{position:absolute;right:10px;bottom:10px;display:flex;gap:6px}
+.tools .btn{background:rgba(20,26,51,.85);color:#fff;border-color:rgba(255,255,255,.25)}
+.plist2{display:grid;gap:2px;max-height:60vh;overflow:auto}
+.pt{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;padding:7px 8px;border-radius:6px;border:0;background:none;text-align:left;cursor:pointer;width:100%;font-size:.9rem}
+.pt:hover{background:var(--sunken)}
+.pt[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.pt i{font-style:normal;font:500 .72rem var(--font-data);width:22px;height:22px;border-radius:50%;display:grid;place-items:center;border:1.5px solid currentColor}
+.pt small{font-family:var(--font-data);font-size:.7rem;opacity:.75}
+.banner{padding:10px 12px;border-radius:8px;background:var(--sunken);font-size:.9rem}
+.banner.warn{background:var(--warn-bg);color:var(--warn)}
+
+/* Resultados */
+.res{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:760px){.res{grid-template-columns:minmax(0,1fr)}}
+.res canvas{width:100%;height:auto;border-radius:8px;background:#0B0E1A;display:block}
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th{font:500 .72rem var(--font-data);text-transform:uppercase;letter-spacing:.06em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+td.v{font-family:var(--font-data);font-variant-numeric:tabular-nums;white-space:nowrap;text-align:right}
+td .ref{display:block;font-size:.78rem;color:var(--muted)}
+.delta.up{color:var(--ok)} .delta.down{color:var(--bad)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto}
+.tabs button{border:0;background:none;padding:10px 14px;cursor:pointer;color:var(--muted);font-weight:500;border-bottom:2px solid transparent;white-space:nowrap}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.summary .panel{display:grid;gap:4px}
+.summary b{font:700 1.6rem/1 var(--font-display)}
+ul.find{margin:0;padding-left:18px;display:grid;gap:4px}
+
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:50;font-size:.9rem;max-width:calc(100% - 32px)}
+.modal{position:fixed;inset:0;background:rgba(10,12,24,.55);display:grid;place-items:center;z-index:40;padding:16px}
+.modal .panel{max-width:440px;width:100%;display:grid;gap:14px}
+.empty{text-align:center;padding:36px 16px;display:grid;gap:10px;justify-items:center}
+footer.disc{max-width:1080px;margin:0 auto;padding-block:0 32px;padding-left:var(--gut);padding-right:var(--gutr);font-size:.8rem;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+<!--ARTIFACT-END-->
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <button class="logo" id="go-home" aria-label="Início">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 2v11"/><path d="M8 13h8l-4 9z" fill="currentColor"/></svg>
+    <b>PRUMO</b>
+  </button>
+  <nav>
+    <button id="nav-patients" aria-current="page">Pacientes</button>
+    <button id="nav-settings">Configurações</button>
+  </nav>
+</div></header>
+<main id="app" aria-live="polite"></main>
+<footer class="disc">O Prumo é uma ferramenta de apoio à avaliação. Os resultados devem ser interpretados por um profissional habilitado e não constituem diagnóstico.</footer>
+<script src="app.js"></script>
+</body>
+</html>
