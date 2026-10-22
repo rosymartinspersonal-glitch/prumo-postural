@@ -54,7 +54,7 @@ const Store = (() => {
 
 const DEFAULT_SETTINGS = {
   id: 'main', clinic: '', professional: '', registry: '', contact: '', logo: '', lineColor: '#FF2D8A', seeded: false,
-  palette: 'indigo', pdfColor: '#1D2A6B', pdfSubtitle: '', pdfExplain: true, pdfExercises: true, protocols: []
+  palette: 'teamrm', theme: 'auto', pdfColor: '#0D0D0D', brandV: 2, pdfSubtitle: '', pdfExplain: true, pdfExercises: true, protocols: []
 };
 async function getSettings() { return { ...DEFAULT_SETTINGS, ...(await Store.get('settings', 'main') || {}) }; }
 

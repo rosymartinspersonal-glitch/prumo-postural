@@ -21,7 +21,19 @@ function downloadBlob(blob, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
 }
-function applyPalette(S) { document.documentElement.dataset.palette = S.palette || 'indigo'; }
+const THEME_ICON = {
+  auto: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></svg>',
+  light: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>',
+  dark: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>' };
+const THEME_LABEL = { auto: 'Tema automático (segue o aparelho)', light: 'Tema claro', dark: 'Tema escuro' };
+function applyPalette(S) {
+  const r = document.documentElement, pal = S.palette || 'teamrm', th = S.theme || 'auto';
+  if (pal === 'teamrm') delete r.dataset.palette; else r.dataset.palette = pal;
+  if (th === 'auto') delete r.dataset.theme; else r.dataset.theme = th;
+  try { localStorage.setItem('teamrm-palette', pal === 'teamrm' ? '' : pal); localStorage.setItem('teamrm-theme', th); } catch (e) { }
+  const b = document.getElementById('theme-btn');
+  if (b) { b.innerHTML = THEME_ICON[th]; b.title = THEME_LABEL[th]; b.setAttribute('aria-label', THEME_LABEL[th] + ' — tocar para trocar'); }
+}
 
 /* ---------- navegação ---------- */
 let cleanup = null;
@@ -55,8 +67,8 @@ function lineChartSVG(points, { okRange, unit = '', height = 220, xLabels } = {}
     ${band}
     ${ticks.map(t => `<line x1="${pl}" x2="${W - pr}" y1="${Y(t)}" y2="${Y(t)}" stroke="var(--line)" stroke-width="1"/><text x="${pl - 6}" y="${Y(t) + 4}" text-anchor="end" class="ax">${nf(t, step < 1 ? 1 : 0)}</text>`).join('')}
     ${labels.map((l, i) => i % every === 0 || i === labels.length - 1 ? `<text x="${X(i)}" y="${H - 8}" text-anchor="middle" class="ax">${esc(l)}</text>` : '').join('')}
-    <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round"/>
-    ${points.length <= 40 ? points.map((p, i) => `<circle cx="${X(i)}" cy="${Y(p.v)}" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`).join('') : ''}
+    <path d="${path}" fill="none" stroke="var(--accent-text)" stroke-width="2" stroke-linejoin="round"/>
+    ${points.length <= 40 ? points.map((p, i) => `<circle cx="${X(i)}" cy="${Y(p.v)}" r="4" fill="var(--accent-text)" stroke="var(--surface)" stroke-width="2"/>`).join('') : ''}
     <line class="xh" x1="0" x2="0" y1="${pt}" y2="${H - pb}" stroke="var(--muted)" stroke-dasharray="3 3" visibility="hidden"/>
   </svg><div class="tip" hidden></div>`;
 }
@@ -564,7 +576,7 @@ SCREENS.help = async () => {
 };
 
 /* ---------- configurações ---------- */
-const PALETTES = { indigo: 'Índigo', oceano: 'Oceano', grafite: 'Grafite', vinho: 'Vinho' };
+const PALETTES = { teamrm: 'TEAMRM (preto e amarelo)', indigo: 'Índigo', oceano: 'Oceano', vinho: 'Vinho' };
 SCREENS.settings = async () => {
   const S = await getSettings();
   app.innerHTML = `<div class="stack" style="gap:4px"><span class="eyebrow">Consultório</span><h1>Configurações</h1></div>
@@ -577,7 +589,8 @@ SCREENS.settings = async () => {
         <label class="f" style="grid-column:1/-1">Frase do banner do PDF<input id="s-sub" value="${esc(S.pdfSubtitle)}" placeholder="Ex.: Fisioterapia postural e RPG"></label>
         <label class="f">Cor do banner do PDF<input id="s-pdfc" type="color" value="${esc(S.pdfColor)}" style="height:42px;padding:4px"></label>
         <label class="f">Cor das linhas de medida<input id="s-color" type="color" value="${esc(S.lineColor)}" style="height:42px;padding:4px"></label>
-        <label class="f">Tema do aplicativo<select id="s-pal">${Object.entries(PALETTES).map(([k, l]) => `<option value="${k}"${S.palette === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="f">Aparência<select id="s-theme">${[['auto', 'Automática (segue o aparelho)'], ['light', 'Clara'], ['dark', 'Escura']].map(([k, l]) => `<option value="${k}"${(S.theme || 'auto') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="f">Cores do aplicativo<select id="s-pal">${Object.entries(PALETTES).map(([k, l]) => `<option value="${k}"${S.palette === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
         <div class="f">Logotipo<div class="row" style="gap:8px">${S.logo ? `<img src="${S.logo}" alt="Logotipo atual" style="height:40px;max-width:120px;object-fit:contain;background:#fff;border-radius:6px;padding:2px">` : ''}
           <label class="btn small" style="cursor:pointer">${S.logo ? 'Trocar' : 'Enviar imagem'}<input type="file" accept="image/*" id="s-logo" hidden></label>${S.logo ? '<button type="button" class="btn small ghost danger" id="s-logo-rm">Remover</button>' : ''}</div></div>
         <label class="row" style="gap:8px;grid-column:1/-1"><input type="checkbox" id="s-exp" ${S.pdfExplain ? 'checked' : ''}> Incluir a interpretação de cada medida no PDF</label>
@@ -631,10 +644,11 @@ SCREENS.settings = async () => {
   $('#sf').onsubmit = async e => {
     e.preventDefault();
     Object.assign(S, { clinic: $('#s-clinic').value.trim(), professional: $('#s-prof').value.trim(), registry: $('#s-reg').value.trim(), contact: $('#s-contact').value.trim(), lineColor: $('#s-color').value,
-      pdfSubtitle: $('#s-sub').value.trim(), pdfColor: $('#s-pdfc').value, palette: $('#s-pal').value, pdfExplain: $('#s-exp').checked, pdfExercises: $('#s-pex').checked });
+      pdfSubtitle: $('#s-sub').value.trim(), pdfColor: $('#s-pdfc').value, palette: $('#s-pal').value, theme: $('#s-theme').value, pdfExplain: $('#s-exp').checked, pdfExercises: $('#s-pex').checked });
     await Store.put('settings', S); applyPalette(S); toast('Configurações salvas');
   };
-  $('#s-pal').onchange = e => applyPalette({ palette: e.target.value });
+  $('#s-pal').onchange = e => applyPalette({ palette: e.target.value, theme: $('#s-theme').value });
+  $('#s-theme').onchange = e => applyPalette({ palette: $('#s-pal').value, theme: e.target.value });
   $('#s-logo').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     const u = URL.createObjectURL(f), im = await loadImg(u), k = Math.min(1, 400 / Math.max(im.naturalWidth, im.naturalHeight));

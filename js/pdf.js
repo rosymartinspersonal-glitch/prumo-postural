@@ -25,6 +25,15 @@ async function exportPDF(a, p) {
   doc.text(pdfSafe([S.professional, S.registry].filter(Boolean).join(' · ')), M, S.pdfSubtitle ? 20 : 16);
   if (S.contact) doc.text(pdfSafe(S.contact), M, S.pdfSubtitle ? 24.5 : 21);
   if (S.logo) { try { const li = await loadImg(S.logo), lh = 20, lw = Math.min(50, lh * li.naturalWidth / li.naturalHeight); doc.setFillColor(255, 255, 255); doc.roundedRect(W - M - lw - 2, 4, lw + 4, lh, 2, 2, 'F'); doc.addImage(S.logo, 'PNG', W - M - lw, 4, lw, lh); } catch { } }
+  else {
+    // logo TEAMRM (branca e amarela): em banner claro, ganha um fundo preto
+    try {
+      const li = await loadImg('assets/logo.png'), lh = 23, lw = lh * li.naturalWidth / li.naturalHeight;
+      if (light) { doc.setFillColor(13, 13, 13); doc.roundedRect(W - M - lw - 3, 2.5, lw + 6, lh + 2, 2, 2, 'F'); }
+      const c = document.createElement('canvas'); c.width = li.naturalWidth; c.height = li.naturalHeight; c.getContext('2d').drawImage(li, 0, 0);
+      doc.addImage(c.toDataURL('image/png'), 'PNG', W - M - lw, 3.5, lw, lh);
+    } catch { }
+  }
   y = 37;
   doc.setTextColor(...INK); doc.setFont('helvetica', 'bold'); doc.setFontSize(16); doc.text(pdfSafe(K.label), M, y);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...MUT); doc.text('Data: ' + fmtDate(a.date), W - M, y, { align: 'right' });
