@@ -29,3 +29,8 @@ create table if not exists public.stripe_events (
   received_at timestamptz not null default now()
 );
 alter table public.stripe_events enable row level security;   -- sem políticas: invisível para o app
+
+-- Permissões explícitas (o projeto foi criado sem expor tabelas novas automaticamente).
+revoke all on public.subscriptions, public.stripe_events from anon, authenticated;
+grant select on public.subscriptions to authenticated;
+grant all on public.subscriptions, public.stripe_events to service_role;

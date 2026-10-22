@@ -16,7 +16,8 @@ Você vai criar duas contas: **Supabase** (login e assinaturas) e **Stripe** (pa
 4. Em **Name**, digite `teamrm`.
 5. Em **Database Password**, clique em **Generate a password** e guarde a senha num lugar seguro.
 6. Em **Region**, escolha **South America (São Paulo)**.
-7. Clique em **Create new project** e espere cerca de 2 minutos.
+7. Em **Security**: deixe **Enable Data API** marcado, **desmarque** *Automatically expose new tables* e **marque** *Enable automatic RLS*.
+7b. Clique em **Create new project** e espere cerca de 2 minutos.
 8. No menu da esquerda, clique em **SQL Editor**.
 9. Clique em **New query**.
 10. No GitHub, abra o arquivo `supabase/migrations/20261022000000_assinaturas.sql`, copie todo o conteúdo e cole na consulta.
