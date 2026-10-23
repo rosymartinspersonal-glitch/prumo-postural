@@ -275,10 +275,10 @@ SCREENS.assessment = async ({ id }) => {
     const f = inp.files[0]; if (!f) return;
     await save();
     const s = inp.dataset.file, old = a.views[s] || {};
-    const r = await openPhotoEditor({ blob: f, V: getView(s, old.rom ? old : undefined), title: getView(s, old.rom ? old : undefined).label }); if (!r) return;
+    const r = await openPhotoEditor({ blob: f, V: getView(s, old.rom ? old : undefined), title: getView(s, old.rom ? old : undefined).label, heightCm: p.height }); if (!r) return;
     // a foto original fica guardada à parte, para reajustes futuros sem perda de qualidade
     await Store.put('media', { id: `src:${a.id}:${s}`, kind: 'file', blob: f, name: f.name, type: f.type, createdAt: todayISO() });
-    a.views[s] = { ...old, img: r.img, edit: { e: r.e, g: r.g }, imgOrig: null, points: {}, mask: false, scale: null };
+    a.views[s] = { ...old, img: r.img, edit: { e: r.e, g: r.g }, imgOrig: null, points: {}, mask: false, scale: null, sym: r.sym ? { ...r.sym, h: p.height || null } : null };
     await Store.put('assessments', a);
     go('mark', { id, slot: s, auto: true });
   });
@@ -323,6 +323,8 @@ SCREENS.mark = async ({ id, slot, auto }) => {
         <div class="row" style="gap:6px">${V.detect ? '<button class="btn small primary" id="auto">Detectar com IA</button>' : ''}<button class="btn small" id="tpl">Posicionar modelo</button><button class="btn small" id="green">Usar marcadores verdes${lockTag('green')}</button></div>
         <div class="row" style="gap:6px"><button class="btn small" id="bg">${vd.imgOrig ? 'Restaurar fundo' : 'Remover fundo' + lockTag('bg')}</button><button class="btn small" id="clear">Limpar pontos</button><button class="btn small" id="reedit">Ajustar foto</button></div>
         ${canMask ? `<label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="mask" ${vd.mask ? 'checked' : ''}> Ocultar o rosto${lockTag('mask')}</label>` : ''}
+        ${V.frame !== 'image' ? `<div class="stack" style="gap:6px"><label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="sym" ${vd.sym?.on ? 'checked' : ''}> Simetrógrafo (grade quadriculada com fio de prumo)</label>
+          <div class="row" id="sym-f" style="gap:6px" ${vd.sym?.on ? '' : 'hidden'}><select id="sym-cm" style="width:auto" aria-label="Tamanho do quadrado"><option value="10"${(vd.sym?.cm || 10) === 10 ? ' selected' : ''}>quadrados de 10 cm</option><option value="5"${vd.sym?.cm === 5 ? ' selected' : ''}>quadrados de 5 cm</option></select><button class="btn small" id="sym-fit">Alinhar aos pontos</button></div></div>` : ''}
         <label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="cal" ${vd.scale?.on ? 'checked' : ''}> Calibrar com régua (medidas em cm)</label>
         <label class="f" id="cal-f" ${vd.scale?.on ? '' : 'hidden'}>Comprimento real da régua (${cmUnit()})<input id="cal-cm" type="number" inputmode="decimal" min="0.5" step="0.1" value="${+cmOut(vd.scale?.cm || 100).toFixed(1)}"></label>
         <div><span class="eyebrow">Pontos</span></div>
@@ -429,6 +431,25 @@ SCREENS.mark = async ({ id, slot, auto }) => {
     b.disabled = false; b.textContent = vd.imgOrig ? 'Restaurar fundo' : 'Remover fundo';
   };
   const mk = $('#mask'); if (mk) mk.onchange = e => { if (e.target.checked && !Billing.can(plan, 'mask')) { e.target.checked = false; return go('plans', { need: 'mask' }); } vd.mask = e.target.checked; persist(); draw(); };
+  // simetrógrafo: liga/desliga, tamanho do quadrado e alinhamento pelos pontos marcados (fio de prumo da vista)
+  const symFromPoints = () => {
+    const P = vd.points || {}, pts = V.points.map(([k]) => P[k]).filter(Boolean);
+    const ys = pts.map(q => q.y), x = V.plumb && readyV(V, P) ? V.plumb(P).x : (pts.length ? pts.reduce((t, q) => t + q.x, 0) / pts.length : IW / 2);
+    const foot = ys.length ? Math.min(IH, Math.max(...ys) + IH * 0.015) : IH * 0.95, top = ys.length > 2 ? Math.max(0, Math.min(...ys) - (Math.max(...ys) - Math.min(...ys)) * 0.08) : IH * 0.06;
+    return { x, top, foot };
+  };
+  if ($('#sym')) {
+    $('#sym').onchange = async e2 => {
+      if (e2.target.checked) { const pat = await Store.get('patients', a.patientId); vd.sym = vd.sym ? { ...vd.sym, on: true } : { on: true, cm: 10, h: pat?.height || null, ...symFromPoints() }; if (!vd.sym.h && pat?.height) vd.sym.h = pat.height; }
+      else if (vd.sym) vd.sym.on = false;
+      $('#sym-f').hidden = !e2.target.checked; persist(); draw();
+    };
+    $('#sym-cm').onchange = e2 => { if (vd.sym) { vd.sym.cm = +e2.target.value; persist(); draw(); } };
+    $('#sym-fit').onclick = () => {
+      if (!readyV(V, vd.points || {})) msg('Marque todos os pontos para alinhar a grade ao fio de prumo da vista; por enquanto usei os pontos já marcados.', 'warn');
+      vd.sym = { ...vd.sym, ...symFromPoints() }; persist(); draw();
+    };
+  }
   $('#cal').onchange = e => {
     vd.scale = { on: e.target.checked, cm: (parseFloat($('#cal-cm').value) || cmOut(100)) / cmOut(1) };
     $('#cal-f').hidden = !e.target.checked;

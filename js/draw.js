@@ -18,11 +18,33 @@ function pixelate(ctx, img, c, r) {
   ctx.restore(); ctx.imageSmoothingEnabled = true;
 }
 
+/* Simetrógrafo digital: grade quadriculada (5 ou 10 cm) com fio de prumo, ancorada nos pés do paciente.
+   sym = { on, x (fio de prumo), top, foot (y do alto da cabeça e da base dos pés, em px da foto), cm, h (altura em cm) } */
+function symCell(sym) { const body = Math.max(1, (sym.foot || 0) - (sym.top || 0)); return body / (sym.h > 50 ? sym.h : 170) * (sym.cm || 10); }
+function drawSym(ctx, sym, W, H, lw) {
+  if (!sym?.on || !(sym.foot > sym.top)) return;
+  const c = symCell(sym); if (!(c > 2)) return;
+  ctx.save();
+  const line = (x0, y0, x1, y1, major) => { ctx.strokeStyle = 'rgba(0,0,0,.28)'; ctx.lineWidth = lw * (major ? 0.7 : 0.45); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke(); ctx.strokeStyle = major ? 'rgba(255,255,255,.75)' : 'rgba(255,255,255,.5)'; ctx.lineWidth = lw * (major ? 0.45 : 0.28); ctx.stroke(); };
+  const big = (sym.cm || 10) === 5 ? 10 : 5;   // linha mais forte a cada 50 cm
+  for (let k = -Math.ceil(sym.x / c); sym.x + k * c <= W; k++) { const x = sym.x + k * c; if (k) line(x, 0, x, H, k % big === 0); }
+  for (let k = 0; sym.foot - k * c >= 0; k++) { const y = sym.foot - k * c; line(0, y, W, y, k % big === 0); }
+  for (let k = 1; sym.foot + k * c <= H; k++) line(0, sym.foot + k * c, W, sym.foot + k * c, false);
+  // fio de prumo
+  ctx.strokeStyle = 'rgba(0,0,0,.35)'; ctx.lineWidth = lw * 1.1; ctx.beginPath(); ctx.moveTo(sym.x, 0); ctx.lineTo(sym.x, H); ctx.stroke();
+  ctx.strokeStyle = '#E79813'; ctx.lineWidth = lw * 0.7; ctx.stroke();
+  // legenda da escala
+  const fs = lw * 4.2; ctx.font = `600 ${fs}px "IBM Plex Mono",monospace`; ctx.textBaseline = 'middle';
+  const t = `□ ${sym.cm || 10} cm`, tw = ctx.measureText(t).width, bx = lw * 3, by = H - fs * 2.2;
+  ctx.fillStyle = 'rgba(11,14,26,.78)'; ctx.fillRect(bx, by - fs * 0.8, tw + lw * 3, fs * 1.6); ctx.fillStyle = '#fff'; ctx.fillText(t, bx + lw * 1.5, by);
+  ctx.restore();
+}
 function drawOverlay(ctx, V, vd, img, o) {
   const P = vd.points || {}, lw = o.lw, color = o.color || '#FF2D8A';
   const W = img.naturalWidth || img.width, H = img.naturalHeight || img.height;
   const complete = readyV(V, P);
   if (vd.mask && complete && !V.noMask && V.face) { const f = V.face(P); if (f) pixelate(ctx, img, f.c, f.r); }
+  drawSym(ctx, vd.sym, W, H, lw);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   if (complete) {
     if (V.plumb) {

@@ -153,7 +153,7 @@ async function peLoadSource(blob) {
     throw e1;
   } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
 }
-function openPhotoEditor({ blob, V, init, title }) {
+function openPhotoEditor({ blob, V, init, title, heightCm }) {
   return new Promise(async resolve => {
     let img; try { img = await peLoadSource(blob); } catch (err) {
       const heic = /hei[cf]/i.test(blob.type || '') || /\.hei[cf]$/i.test(blob.name || '');
@@ -175,6 +175,7 @@ function openPhotoEditor({ blob, V, init, title }) {
         <div class="pe-side stack">
           <div id="pe-checks" class="pe-checks"></div>
           <div class="row" style="gap:6px"><button class="btn small primary" id="pe-auto">Endireitar automático</button><button class="btn small" id="pe-ref">Linha de referência</button></div>
+          ${fullBody ? `<div class="row" style="gap:6px"><button class="btn small primary" id="pe-sym">▦ Simetrógrafo automático</button><select id="pe-symcm" aria-label="Tamanho do quadrado" style="width:auto"><option value="10">quadrados de 10 cm</option><option value="5">quadrados de 5 cm</option></select></div>` : ''}
           <div class="row" style="gap:6px"><button class="btn small" id="pe-l90" aria-label="Girar 90° à esquerda">↺ 90°</button><button class="btn small" id="pe-r90" aria-label="Girar 90° à direita">↻ 90°</button>${fullBody ? '<button class="btn small" id="pe-body">Enquadrar no corpo</button>' : ''}<label class="row" style="gap:6px;font-size:.88rem"><input type="checkbox" id="pe-grid" checked> Grade</label></div>
           <label class="f">Rotação fina: <b class="num" id="pe-av"></b>
             <span class="row" style="gap:6px;flex-wrap:nowrap"><button class="btn small" id="pe-am" aria-label="Girar 0,1° à esquerda">−</button><input type="range" id="pe-ang" min="-15" max="15" step="0.1" style="flex:1"><button class="btn small" id="pe-ap" aria-label="Girar 0,1° à direita">+</button></span></label>
@@ -198,6 +199,7 @@ function openPhotoEditor({ blob, V, init, title }) {
       $$('[data-crop]', m).forEach(i => i.value = (e.crop[i.dataset.crop] || 0) * 100);
       $('#pe-gam', m).value = e.lv.g; $('#pe-con', m).value = Math.round((e.lv.lo + 255 - e.lv.hi) / 2);
       const pb = $('#pe-body', m); if (pb) pb.textContent = e.body ? 'Desfazer enquadramento' : 'Enquadrar no corpo';
+      const ps = $('#pe-sym', m); if (ps) { ps.textContent = e.sym ? '▦ Tirar simetrógrafo' : '▦ Simetrógrafo automático'; ps.classList.toggle('primary', !e.sym); $('#pe-symcm', m).value = String(e.sym?.cm || 10); }
     };
     const draw = () => {
       cancelAnimationFrame(raf);
@@ -205,7 +207,10 @@ function openPhotoEditor({ blob, V, init, title }) {
         prev = peRender(img, e, 900, { fillColor });
         cv.width = prev.g.outW; cv.height = prev.g.outH; ctx.drawImage(prev.cv, 0, 0);
         const W = cv.width, H = cv.height, lw = Math.max(1, W / 450);
-        if (grid) {
+        if (e.sym) {
+          const a = peMap(e.sym.a, prev.g), b = peMap(e.sym.b, prev.g);
+          drawSym(ctx, { on: true, x: b.x, top: a.y, foot: b.y, cm: e.sym.cm, h: heightCm }, W, H, lw * 1.6);
+        } else if (grid) {
           ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = lw;
           for (let i = 1; i < 10; i++) { ctx.beginPath(); ctx.moveTo(W * i / 10, 0); ctx.lineTo(W * i / 10, H); ctx.stroke(); }
           for (let i = 1; i < 12; i++) { ctx.beginPath(); ctx.moveTo(0, H * i / 12); ctx.lineTo(W, H * i / 12); ctx.stroke(); }
@@ -265,7 +270,8 @@ function openPhotoEditor({ blob, V, init, title }) {
       b.disabled = true; b.textContent = 'Salvando…';
       setTimeout(() => {
         const { cv: out, g } = peRender(img, e, PE_MAX_OUT, { fillColor });
-        close({ img: out.toDataURL('image/jpeg', PE_JPEG_Q), e: JSON.parse(JSON.stringify(e)), g, W0, H0 });
+        const sym = e.sym ? (() => { const a = peMap(e.sym.a, g), b = peMap(e.sym.b, g); return { on: true, x: b.x, top: a.y, foot: b.y, cm: e.sym.cm || 10 }; })() : null;
+        close({ img: out.toDataURL('image/jpeg', PE_JPEG_Q), e: JSON.parse(JSON.stringify(e)), g, W0, H0, sym });
       }, 30);
     });
     const setAngle = a => { e.angle = Math.max(-15, Math.min(15, Math.round(a * 10) / 10)); syncUI(); draw(); };
@@ -313,6 +319,38 @@ function openPhotoEditor({ blob, V, init, title }) {
       e.body = { x0: cx - hw, x1: cx + hw, y0, y1: Math.max(y1, y0 + hw * 8 / 3) };
       e.pad34 = true; e.crop = { l: 0, r: 0, t: 0, b: 0 }; syncUI(); draw();
     };
+    /* Simetrógrafo automático: acha o corpo, endireita pelo ambiente (nunca pelo corpo), centraliza o
+       fio de prumo entre os tornozelos (ou no tornozelo, de perfil), enquadra da cabeça aos pés e
+       desenha a grade quadriculada na escala da altura do paciente. */
+    const ps = $('#pe-sym', m); if (ps) {
+      $('#pe-symcm', m).onchange = ev => { if (e.sym) { e.sym.cm = +ev.target.value; draw(); } };
+      ps.onclick = async () => {
+        if (e.sym) { e.sym = null; syncUI(); draw(); return; }
+        if (!pose) { ps.disabled = true; ps.textContent = 'Localizando o corpo…'; try { pose = await detectPoseRaw(img); } catch (err) { } ps.disabled = false; }
+        const cm = +$('#pe-symcm', m).value || 10;
+        if (!pose) {   // sem IA: grade no centro da foto, para ajustar à mão depois na marcação
+          e.sym = { a: { x: W0 / 2, y: H0 * 0.06 }, b: { x: W0 / 2, y: H0 * 0.95 }, cm, manual: true };
+          toast('Não encontrei o corpo (a IA precisa de internet na primeira vez). Coloquei a grade no centro; na marcação dos pontos você centraliza no fio de prumo.', 6500);
+          syncUI(); draw(); return;
+        }
+        // 1) endireita pelo ambiente, se houver linhas confiáveis
+        let tot = 0; for (let it = 0; it < 2; it++) { const r = measureTilt(); if (r.conf < 0.12 || Math.abs(r.angle) < 0.05) break; tot += r.angle; e.angle = Math.max(-15, Math.min(15, e.angle + r.angle)); }
+        lastTilt = measureTilt().angle;
+        // 2) referências anatômicas na foto original
+        const L = pose.L, mean = (...ix) => ({ x: ix.reduce((t, i) => t + L[i].x, 0) / ix.length, y: ix.reduce((t, i) => t + L[i].y, 0) / ix.length });
+        const ank = mean(27, 28), eye = mean(2, 5), sh = mean(11, 12);
+        const footY = Math.max(...[29, 30, 31, 32].map(i => L[i].y)), topY = eye.y - 0.5 * Math.max(0, sh.y - eye.y);
+        e.sym = { a: { x: ank.x, y: topY }, b: { x: ank.x, y: footY }, cm };
+        // 3) enquadra centrado no fio de prumo, da cabeça aos pés (só corte e margem: nada é esticado)
+        const A = peRotSpace(e.sym.a, W0, H0, e), B = peRotSpace(e.sym.b, W0, H0, e), bh = B.y - A.y;
+        const Px = L.filter((_, i) => pose.V[i] > 0.3).map(p => peRotSpace(p, W0, H0, e).x);
+        const half = Math.max(...Px.map(x => Math.abs(x - B.x))) + bh * 0.1;
+        const y0 = A.y - bh * 0.07, y1 = B.y + bh * 0.05, hw = Math.max(half, (y1 - y0) * 3 / 8);
+        e.body = { x0: B.x - hw, x1: B.x + hw, y0, y1 }; e.pad34 = true; e.crop = { l: 0, r: 0, t: 0, b: 0 };
+        syncUI(); draw();
+        toast(tot ? `Foto endireitada ${nf(Math.abs(tot), 1)}° pelo ambiente e centralizada no fio de prumo.` : 'Simetrógrafo posicionado no fio de prumo, da cabeça aos pés.', 4500);
+      };
+    }
     $('#pe-gam', m).oninput = ev => { e.lv.g = +ev.target.value; draw(); };
     $('#pe-con', m).oninput = ev => { const k = +ev.target.value, mid = (e.lv.lo + e.lv.hi) / 2, half = 127.5 - k; e.lv.lo = Math.round(mid - half); e.lv.hi = Math.round(mid + half); draw(); };
     $('#pe-light', m).onclick = () => {
@@ -320,7 +358,7 @@ function openPhotoEditor({ blob, V, init, title }) {
       e.lv = { lo, hi, g: Math.round(Math.max(0.7, Math.min(1.5, Math.log(mn) / Math.log(0.5))) * 100) / 100 }; syncUI(); draw();
     };
     $('#pe-light0', m).onclick = () => { e.lv = { lo: 0, hi: 255, g: 1 }; syncUI(); draw(); };
-    $('#pe-reset', m).onclick = () => { Object.assign(e, PE_DEFAULT()); syncUI(); draw(); };
+    $('#pe-reset', m).onclick = () => { Object.assign(e, PE_DEFAULT(), { sym: null }); syncUI(); draw(); };
     syncUI(); draw();
   });
 }
@@ -339,8 +377,15 @@ async function reEditPhoto(a, slot) {
   const prevImg = await loadImg(vd.img);
   const old = vd.edit && med?.blob ? vd.edit : null;
   const oldG = old ? old.g : peGeom(prevImg.naturalWidth, prevImg.naturalHeight, PE_DEFAULT());
-  const r = await openPhotoEditor({ blob, V, init: old ? old.e : null, title: V.label });
+  const pat = await Store.get('patients', a.patientId);
+  if (old?.e?.sym && vd.sym?.cm) old.e.sym.cm = vd.sym.cm;
+  const r = await openPhotoEditor({ blob, V, init: old ? old.e : null, title: V.label, heightCm: pat?.height });
   if (!r) return false;
+  // simetrógrafo: recém-criado no editor → usa o novo; já existente → acompanha o ajuste (mantém o que foi alinhado à mão)
+  const hadEd = !!old?.e?.sym;
+  if (r.sym && (!vd.sym || !hadEd)) vd.sym = { ...r.sym, h: pat?.height || vd.sym?.h || null };
+  else if (!r.sym && hadEd) vd.sym = null;
+  else if (vd.sym) { const q = peRemapPoints({ a: { x: vd.sym.x, y: vd.sym.top }, b: { x: vd.sym.x, y: vd.sym.foot } }, oldG, r.g); vd.sym = { ...vd.sym, x: q.b.x, top: q.a.y, foot: q.b.y, cm: r.sym?.cm || vd.sym.cm }; }
   if (!med?.blob) await Store.put('media', { id: `src:${a.id}:${slot}`, kind: 'file', blob, name: 'original.jpg', type: blob.type, createdAt: todayISO() });
   const hadPts = vd.points && Object.keys(vd.points).length;
   vd.points = hadPts ? peRemapPoints(vd.points, oldG, r.g) : {};
