@@ -95,7 +95,9 @@ SCREENS.results_db = async () => {
   app.innerHTML = `<div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">Banco de resultados</span><h1>Resultados</h1></div><span class="muted" id="rcount"></span></div>
     <div class="chips" id="chips"></div>
     <div class="tabs" role="tablist"><button role="tab" data-ord="new">Recente primeiro</button><button role="tab" data-ord="old">Antigo primeiro</button></div>
-    <div id="rlist" class="rlist"></div>`;
+    <div id="rlist" class="rlist"></div>
+    ${pts.length ? finalPanel('', `<label class="f">Paciente<select id="fin-p">${[...pts].sort((x, y) => x.name.localeCompare(y.name, 'pt-BR')).filter(pt => as.some(a => a.patientId === pt.id)).map(pt => `<option value="${pt.id}">${esc(pt.name)}</option>`).join('')}</select></label>`) : ''}`;
   $$('[data-ord]').forEach(b => b.onclick = () => { resFilter.order = b.dataset.ord; draw(); });
   draw();
+  if ($('#fin-final')) bindFinalPanel(async () => { const id = $('#fin-p')?.value; return id ? Store.get('patients', id) : null; }, null);
 };

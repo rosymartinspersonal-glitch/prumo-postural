@@ -233,7 +233,7 @@ SCREENS.patient = async ({ id }) => {
     </div>
     ${stu.length ? stu.map(x => { const k = AL.days(x.end, AL.today()); return `<button class="alstrip" data-stu="${x.id}" style="border-color:var(--line)"><span class="kicon" aria-hidden="true">RM</span><span style="min-width:0"><b>Aluno · ${esc(x.service || 'Plano')}${x.plan ? ' ' + esc(x.plan) : ''}</b><br><span class="muted" style="font-size:.86rem">${x.end ? (k < 0 ? 'Venceu em ' : 'Até ') + esc(AL.br(x.end)) : 'Sem término'} · ${esc(x.situation || '')}</span></span><span aria-hidden="true">›</span></button>`; }).join('') : `<div><button class="btn small ghost" id="mk-stu">+ Cadastrar como aluno (plano, revisões e pagamento)</button></div>`}
     ${p.complaint ? `<div class="panel"><span class="eyebrow">Queixa principal</span><p style="margin:6px 0 0">${esc(p.complaint)}</p></div>` : ''}
-    <div class="row spread"><h2>Avaliações</h2><button class="btn primary" id="new-a">+ Nova avaliação</button></div>
+    <div class="row spread"><h2>Avaliações</h2><button class="btn primary" id="new-a">+ Nova avaliação postural</button></div>
     <div>${as.length ? `<div class="plist">${as.map(a => {
       const s = assessSummary(a), f = KINDS[kindOf(a)].video ? [] : findings(a), bad = f.filter(x => x.m.status === 'bad').length, warn = f.length - bad;
       const same = as.filter(x => kindOf(x) === kindOf(a));
@@ -252,7 +252,8 @@ SCREENS.patient = async ({ id }) => {
     for (const a of as) await Store.del('assessments', a.id);
     await Store.del('patients', id); toast('Paciente excluído'); go('patients');
   };
-  $('#new-a').onclick = () => pickKind(id);
+  // em Pacientes · Avaliação, a nova avaliação é sempre a postural completa (os outros testes ficam no Início)
+  $('#new-a').onclick = () => newAssessment(id, 'postural');
   $$('[data-open]').forEach(b => b.onclick = () => go('assessment', { id: b.dataset.open }));
   $$('[data-adel]').forEach(b => b.onclick = () => deleteAssessment(as.find(x => x.id === b.dataset.adel), () => go('patient', { id })));
   $$('[data-res]').forEach(b => b.onclick = () => go('results', { id: b.dataset.res }));
@@ -271,6 +272,11 @@ async function deleteAssessment(a, after) {
   await Store.del('media', 'video:' + a.id);
   await Store.del('assessments', a.id);
   toast('Avaliação excluída'); if (after) after(); return true;
+}
+async function newAssessment(pid, kind) {
+  if (!Billing.can(await Billing.plan(), kind)) return go('plans', { need: kind });
+  const a = { id: uid(), patientId: pid, kind, date: todayISO(), views: {}, order: [], notes: '', conclusion: '', createdAt: todayISO() };
+  await Store.put('assessments', a); go(screenOfKind(a.kind), { id: a.id });
 }
 function pickKind(pid) {
   const m = document.createElement('div'); m.className = 'modal';
@@ -572,8 +578,10 @@ SCREENS.results = async ({ id }) => {
     ${ex.length ? `<section class="panel stack"><div class="row spread"><h2>Exercícios sugeridos</h2><label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="inc-ex" ${a.includeExercises ? 'checked' : ''}> Incluir no PDF</label></div>
       <p class="muted" style="margin:0;font-size:.88rem">Sugestões ligadas aos achados. Ajuste à condição do paciente antes de prescrever.</p>
       <div class="exgrid">${ex.map(e => `<button class="excard exlink" data-exo="${e.id}"><span class="row" style="gap:10px;align-items:center;flex-wrap:nowrap">${exPicto(e.pose, 56)}<span><b>${esc(e.name)}</b><br><span class="tag">${esc(EX_CATS[e.cat])}</span></span></span><span class="muted" style="font-size:.82rem">${esc(e.dose)} · para: ${esc(e.why.join(', ').toLowerCase())}</span></button>`).join('')}</div>
-      <div><button class="btn primary" id="ex-go">Começar treino com estes exercícios</button></div></section>` : ''}`;
+      <div><button class="btn primary" id="ex-go">Começar treino com estes exercícios</button></div></section>` : ''}
+    ${finalPanel('Esta avaliação')}`;
   bindBack('patient', { id: a.patientId });
+  bindFinalPanel(p, async () => { a.conclusion = $('#concl').value; await Store.put('assessments', a); return a; });
   for (const s of slots) paintInto($(`[data-cv="${s}"]`), getView(s, a.views[s]), a.views[s], S);
   $('#concl').onchange = async e => { a.conclusion = e.target.value; await Store.put('assessments', a); toast('Conclusão salva'); };
   $$('[data-exo]').forEach(b => b.onclick = () => go('exercise', { id: b.dataset.exo }));
@@ -592,6 +600,28 @@ SCREENS.results = async ({ id }) => {
     b.disabled = false; b.textContent = 'Exportar PDF';
   };
 };
+
+/* ---------- fim dos resultados: salvar em PDF, compartilhar e relatório final ---------- */
+function finalPanel(label, extra = '') {
+  return `<section class="panel stack" id="fin"><h2>${label ? 'Concluir e enviar' : 'Relatório final do paciente'}</h2>${extra}
+    <p class="muted" style="margin:0;font-size:.9rem">${label ? `<b>${esc(label)}</b>: salve em PDF ou compartilhe pelo WhatsApp, e-mail e outros apps. ` : ''}O <b>relatório final</b> junta em um só PDF a avaliação mais recente de cada tipo do paciente, com resumo, conclusões e sua assinatura.</p>
+    <div class="row" style="flex-wrap:wrap">${label ? '<button class="btn" id="fin-pdf">Salvar em PDF</button><button class="btn" id="fin-share">Compartilhar</button>' : ''}<button class="btn primary" id="fin-final">Gerar relatório final</button><button class="btn" id="fin-final-share">Compartilhar relatório final</button></div></section>`;
+}
+// getA: devolve a avaliação atual já salva (null na tela de lista); getP: paciente (ou função que o devolve)
+function bindFinalPanel(p, getA) {
+  const P = async () => (typeof p === 'function' ? p() : p);
+  const busy = async (b, label, fn) => { const t = b.textContent; b.disabled = true; b.textContent = label; try { await fn(); } catch (err) { toast('Não foi possível gerar o PDF: ' + err.message, 5000); } b.disabled = false; b.textContent = t; };
+  const ask = async pt => new Promise(res => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<form class="panel stack" role="dialog" aria-modal="true" style="max-width:560px"><h2>Relatório final · ${esc(pt.name)}</h2><label class="f">Conclusão geral (opcional; vai no resumo do relatório)<textarea id="fc" rows="5" placeholder="Síntese dos achados, conduta e orientações.">${esc(pt.finalConclusion || '')}</textarea></label><div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-x>Cancelar</button><button class="btn primary">Gerar</button></div></form>`;
+    document.body.appendChild(m); $('[data-x]', m).onclick = () => { m.remove(); res(null); };
+    $('form', m).onsubmit = async e => { e.preventDefault(); pt.finalConclusion = $('#fc', m).value.trim(); await Store.put('patients', pt); m.remove(); res(pt.finalConclusion); };
+  });
+  const fp = $('#fin-pdf'); if (fp) fp.onclick = () => busy(fp, 'Gerando…', async () => { await exportPDF(await getA(), await P()); toast('PDF salvo'); });
+  const fs = $('#fin-share'); if (fs) fs.onclick = () => busy(fs, 'Preparando…', async () => { const pt = await P(), a = await getA(); await sharePDF(await exportPDF(a, pt, { blob: true }), `${KINDS[kindOf(a)].label} — ${pt.name}`); });
+  $('#fin-final').onclick = async () => { const pt = await P(); if (!pt) return toast('Escolha o paciente'); const c = await ask(pt); if (c === null) return; await busy($('#fin-final'), 'Gerando…', async () => { if (getA) await getA(); await exportFinalReport(pt, { conclusion: c }); toast('Relatório final salvo'); }); };
+  $('#fin-final-share').onclick = async () => { const pt = await P(); if (!pt) return toast('Escolha o paciente'); const c = await ask(pt); if (c === null) return; await busy($('#fin-final-share'), 'Preparando…', async () => { if (getA) await getA(); await sharePDF(await exportFinalReport(pt, { conclusion: c, blob: true }), `Relatório final de avaliação — ${pt.name}`); }); };
+}
 
 /* ---------- comparação antes × depois ---------- */
 SCREENS.compare = async ({ pid, a: ida, b: idb }) => {

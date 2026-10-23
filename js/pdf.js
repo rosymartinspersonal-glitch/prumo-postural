@@ -4,12 +4,14 @@
 const pdfSafe = s => String(s ?? '').replace(/≤ ?/g, 'até ').replace(/≥ ?/g, 'mín. ').replace(/[–—−]/g, '-').replace(/[✓φ]/g, m => m === 'φ' ? 'phi' : '').replace(/×/g, 'x').replace(/÷/g, '/').replace(/…/g, '...');
 const hexRgb = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); const n = m ? parseInt(m[1], 16) : 0x1D2A6B; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 
-async function exportPDF(a, p) {
+// opts.doc: acrescenta a um PDF já aberto (relatório final); opts.noSign: sem bloco de assinatura; opts.blob: devolve o arquivo em vez de baixar
+async function exportPDF(a, p, opts = {}) {
   if (!window.jspdf) await withTimeout(loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'), 20000);
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ unit: 'mm', format: 'a4' }), S = await getSettings(), K = KINDS[kindOf(a)];
+  const doc = opts.doc || new jsPDF({ unit: 'mm', format: 'a4' }), S = await getSettings(), K = KINDS[kindOf(a)];
+  if (opts.doc) doc.addPage();
   // assinatura da profissional: se ainda não foi cadastrada, oferece enviar ou desenhar agora (uma vez por sessão, se pular)
-  if (!S.signature && !window.__sigSkip) { const png = await sigAsk(); if (png) { S.signature = png; await Store.put('settings', S); } else window.__sigSkip = true; }
+  if (!opts.doc && !opts.noSign && !S.signature && !window.__sigSkip) { const png = await sigAsk(); if (png) { S.signature = png; await Store.put('settings', S); } else window.__sigSkip = true; }
   const W = 210, Hh = 297, M = 14, INK = [20, 26, 51], MUT = [90, 97, 128];
   const SC = { ok: [23, 128, 74], warn: [168, 98, 0], bad: [192, 40, 58], na: MUT };
   let y = 0;
@@ -143,16 +145,71 @@ async function exportPDF(a, p) {
   }
   if (a.notes) { y += 3; h2('Observações da coleta'); para(a.notes); }
   if (a.conclusion) { y += 3; h2('Conclusão do profissional'); para(a.conclusion); }
-  need(S.signature ? 44 : 30); y = Math.max(y + (S.signature ? 30 : 18), Hh - 40);
+  if (!opts.noSign) await pdfSignBlock(doc, S, y, need);
+  if (opts.doc) return doc;
+  pdfFooter(doc);
+  const fname = `${slug(K.label)}-${slug(p.name)}-${a.date.slice(0, 10)}.pdf`;
+  if (opts.blob) return { blob: doc.output('blob'), name: fname };
+  doc.save(fname);
+}
+// assinatura da profissional (imagem salva em Ajustes) sobre a linha com nome e registro
+async function pdfSignBlock(doc, S, y, need) {
+  const W = 210, Hh = 297, INK = [20, 26, 51];
+  if (y + (S.signature ? 44 : 30) > Hh - 18) { doc.addPage(); y = 18; } y = Math.max(y + (S.signature ? 30 : 18), Hh - 40);
   if (S.signature) { try { const si = await loadImg(S.signature), r = si.naturalWidth / si.naturalHeight; let sw = 60, sh = sw / r; if (sh > 22) { sh = 22; sw = sh * r; } doc.addImage(S.signature, 'PNG', W / 2 - sw / 2, y - sh + 3, sw, sh); } catch { } }
   doc.setDrawColor(...INK); doc.line(W / 2 - 40, y, W / 2 + 40, y);
   doc.setFontSize(9); doc.setTextColor(...INK); doc.text(pdfSafe(S.professional || 'Profissional responsável'), W / 2, y + 4.5, { align: 'center' });
   if (S.registry) doc.text(pdfSafe(crefFmt(S.registry)), W / 2, y + 9, { align: 'center' });
-  const n = doc.getNumberOfPages();
+}
+function pdfFooter(doc) {
+  const W = 210, Hh = 297, M = 14, MUT = [90, 97, 128], n = doc.getNumberOfPages();
   for (let i = 1; i <= n; i++) {
     doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(...MUT);
     doc.text('Medidas obtidas por fotogrametria 2D. Ferramenta de apoio: os resultados devem ser interpretados por profissional habilitado e não constituem diagnóstico.', M, Hh - 8, { maxWidth: W - 2 * M - 20 });
     doc.text(`${i}/${n}`, W - M, Hh - 8, { align: 'right' });
   }
-  doc.save(`${slug(K.label)}-${slug(p.name)}-${a.date.slice(0, 10)}.pdf`);
+}
+
+/* ---------- relatório final: todas as avaliações do paciente em um PDF ---------- */
+// mais recente de cada tipo, com capa (resumo) e conclusão geral + assinatura no fim
+async function exportFinalReport(p, opts = {}) {
+  if (!window.jspdf) await withTimeout(loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'), 20000);
+  const S = await getSettings();
+  if (!S.signature && !window.__sigSkip) { const png = await sigAsk(); if (png) { S.signature = png; await Store.put('settings', S); } else window.__sigSkip = true; }
+  const all = (await Store.all('assessments')).filter(a => a.patientId === p.id).sort((x, y) => y.date.localeCompare(x.date));
+  const latest = Object.keys(KINDS).map(k => all.find(a => kindOf(a) === k)).filter(Boolean).filter(a => finalHasData(a));
+  if (!latest.length) throw new Error('nenhuma avaliação concluída deste paciente');
+  const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4' });
+  const W = 210, Hh = 297, M = 14, INK = [20, 26, 51], MUT = [90, 97, 128], SC = { ok: [23, 128, 74], warn: [168, 98, 0], bad: [192, 40, 58] };
+  const bc = hexRgb(S.pdfColor), light = (bc[0] * 299 + bc[1] * 587 + bc[2] * 114) / 1000 > 150;
+  doc.setFillColor(...bc); doc.rect(0, 0, W, 28, 'F'); doc.setTextColor(...(light ? INK : [255, 255, 255])); doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+  doc.text(pdfSafe(S.clinic || 'TEAMRM - Posture & Correction'), M, 11); doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  doc.text(pdfSafe([S.professional, crefFmt(S.registry)].filter(Boolean).join(' · ')), M, 18);
+  try { const li = await loadImg(S.logo || 'assets/logo.png'), lh = 22, lw = Math.min(50, lh * li.naturalWidth / li.naturalHeight), c = document.createElement('canvas'); c.width = li.naturalWidth; c.height = li.naturalHeight; c.getContext('2d').drawImage(li, 0, 0); if (light) { doc.setFillColor(13, 13, 13); doc.roundedRect(W - M - lw - 3, 2.5, lw + 6, lh + 2, 2, 2, 'F'); } doc.addImage(c.toDataURL('image/png'), 'PNG', W - M - lw, 3.5, lw, lh); } catch (e) { }
+  let y = 42; doc.setTextColor(...INK); doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.text('Relatório final de avaliação', M, y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...MUT); doc.text('Emitido em ' + fmtDate(new Date().toISOString()), W - M, y, { align: 'right' }); y += 8;
+  const ag = age(p.birth), im = bmi(p);
+  doc.setFillColor(243, 244, 248); doc.roundedRect(M, y, W - 2 * M, 16, 2, 2, 'F'); doc.setFontSize(7.5); doc.setTextColor(...MUT);
+  [['PACIENTE', p.name], ['IDADE', ag != null ? ag + ' anos' : '-'], ['ALTURA / PESO', [p.height ? nf(cmOut(p.height), 0) + ' ' + cmUnit() : '', p.weight ? nf(kgOut(p.weight)) + ' ' + kgUnit() : ''].filter(Boolean).join(' · ') || '-'], ['IMC', im ? nf(im) : '-']].forEach(([k, v], i) => { const x = M + 4 + i * 46; doc.setFontSize(7.5); doc.setTextColor(...MUT); doc.text(k, x, y + 6); doc.setFontSize(10); doc.setTextColor(...INK); doc.text(doc.splitTextToSize(pdfSafe(v), 44)[0], x, y + 12); });
+  y += 24; doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('Avaliações incluídas', M, y); y += 6;
+  doc.setFontSize(7.5); doc.setTextColor(...MUT); doc.text('AVALIAÇÃO', M, y); doc.text('DATA', M + 92, y); doc.text('NORMAIS', M + 120, y); doc.text('ATENÇÃO', M + 140, y); doc.text('ALTERADAS', M + 160, y); y += 2; doc.setDrawColor(211, 215, 228); doc.line(M, y, W - M, y); y += 5;
+  doc.setFont('helvetica', 'normal');
+  for (const a of latest) { const c = finalCounts(a); doc.setFontSize(9.5); doc.setTextColor(...INK); doc.text(pdfSafe(KINDS[kindOf(a)].label), M, y); doc.text(fmtDate(a.date), M + 92, y); [['ok', 120], ['warn', 140], ['bad', 160]].forEach(([k, x]) => { doc.setTextColor(...(c ? SC[k] : MUT)); doc.text(c ? String(c[k]) : '-', M + x + 6, y, { align: 'center' }); }); y += 6.5; }
+  y += 4; const conc = latest.filter(a => a.conclusion);
+  if (conc.length) { doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(...INK); doc.text('Conclusões por avaliação', M, y); y += 6; doc.setFont('helvetica', 'normal'); for (const a of conc) { doc.setFontSize(9.5); const L = doc.splitTextToSize(pdfSafe(`${KINDS[kindOf(a)].label}: ${a.conclusion}`), W - 2 * M); if (y + L.length * 4.3 > Hh - 60) { doc.addPage(); y = 18; } doc.text(L, M, y); y += L.length * 4.3 + 2; } }
+  if (opts.conclusion) { y += 2; doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.text('Conclusão geral', M, y); y += 6; doc.setFont('helvetica', 'normal'); doc.setFontSize(10); const L = doc.splitTextToSize(pdfSafe(opts.conclusion), W - 2 * M); if (y + L.length * 4.5 > Hh - 50) { doc.addPage(); y = 18; } doc.text(L, M, y); y += L.length * 4.5 + 2; }
+  await pdfSignBlock(doc, S, y);
+  for (const a of latest) await exportPDF(a, p, { doc, noSign: true });
+  pdfFooter(doc);
+  const fname = `relatorio-final-${slug(p.name)}-${new Date().toISOString().slice(0, 10)}.pdf`;
+  if (opts.blob) return { blob: doc.output('blob'), name: fname };
+  doc.save(fname);
+}
+function finalHasData(a) { const K = KINDS[kindOf(a)]; if (K.bio) return +a.bio?.weight > 0; if (K.video) return !!a.video?.times?.length; return slotsOf(a).some(s => viewReady(a.views?.[s], s)); }
+function finalCounts(a) { const K = KINDS[kindOf(a)]; if (K.bio || K.video) return null; try { const ms = slotsOf(a).filter(s => viewReady(a.views[s], s)).flatMap(s => measuresFor(s, a.views[s])); return { ok: ms.filter(m => m.status === 'ok').length, warn: ms.filter(m => m.status === 'warn').length, bad: ms.filter(m => m.status === 'bad').length }; } catch (e) { return null; } }
+// compartilha o PDF pelo menu do aparelho (WhatsApp, e-mail…); sem suporte, baixa o arquivo
+async function sharePDF(r, text) {
+  const file = new File([r.blob], r.name, { type: 'application/pdf' });
+  if (navigator.canShare?.({ files: [file] })) { try { await navigator.share({ files: [file], title: r.name, text }); return; } catch (e) { if (e.name === 'AbortError') return; } }
+  downloadBlob(r.blob, r.name); toast('Este navegador não compartilha arquivos: o PDF foi baixado para você enviar pelo WhatsApp ou e-mail.', 5000);
 }
