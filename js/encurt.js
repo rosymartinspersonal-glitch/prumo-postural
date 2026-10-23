@@ -138,7 +138,7 @@ const REF_ART = Object.fromEntries(FIG.keys().map(k => [k, FIG.svgStatic(k)]));
   }
   // 6) flexão anterior em pé — vista anterior (simetria do alcance)
   VIEWS.encFlexAnt = { ...base, detect: 'pose',
-    label: 'Flexão anterior em pé — vista anterior', short: 'Flexão frente',
+    label: 'Flexão anterior — vista anterior', short: 'Flexão frente',
     hint: 'De frente para a câmera, pés na largura do quadril e joelhos estendidos. Desce o tronco à frente levando as mãos ao chão, cabeça relaxada. Câmera na altura do quadril.',
     points: [['acromioD', 'Acrômio direito'], ['acromioE', 'Acrômio esquerdo'], ['maoD', 'Ponta dos dedos da mão direita'], ['maoE', 'Ponta dos dedos da mão esquerda'], ['tornD', 'Tornozelo direito (centro)'], ['tornE', 'Tornozelo esquerdo (centro)']],
     tpl: { acromioD: [.38, .55], acromioE: [.62, .55], maoD: [.4, .9], maoE: [.6, .9], tornD: [.42, .93], tornE: [.58, .93] },
@@ -159,7 +159,7 @@ const REF_ART = Object.fromEntries(FIG.keys().map(k => [k, FIG.svgStatic(k)]));
   // 7) flexão anterior em pé — perfil direito e esquerdo (mesmas medidas da vista lateral de Adams)
   for (const r of [true, false]) {
     const A = VIEWS.adamsLat;
-    VIEWS['encFlexLat' + (r ? 'D' : 'E')] = { ...A, side: r ? 'D' : 'E', label: `Flexão anterior em pé — perfil ${ladoM(r)}`, short: `Flexão ${r ? 'D' : 'E'}`,
+    VIEWS['encFlexLat' + (r ? 'D' : 'E')] = { ...A, side: r ? 'D' : 'E', label: `Flexão anterior — vista lateral ${lado(r)}`, short: `Flexão ${r ? 'D' : 'E'}`,
       hint: `Lado ${ladoM(r)} voltado para a câmera, pés juntos e joelhos estendidos. Desce o tronco o máximo que conseguir com os braços pendentes em direção ao chão. Use a régua para obter a distância dedo–chão em cm.`,
       tpl: mirror(A.tpl, r) };
   }
@@ -177,6 +177,16 @@ const REF_ART = Object.fromEntries(FIG.keys().map(k => [k, FIG.svgStatic(k)]));
 
 const ROUPA = ' Roupa: top preto e biquíni ou short preto (deixa os pontos anatômicos visíveis).';
 for (const k of Object.keys(REF_ART)) if (VIEWS[k] && !String(VIEWS[k].hint || '').includes('Roupa:')) VIEWS[k].hint = (VIEWS[k].hint || '') + ROUPA;
+
+// Postura completa e Flexão de tronco: vista anterior e as duas laterais da flexão anterior
+// (a vista lateral antiga "adamsLat" continua aparecendo nas avaliações que já têm foto nela)
+for (const k of ['postural', 'adams']) {
+  const v = KINDS[k].views.filter(x => x !== 'adamsLat'), i = v.indexOf('adamsPost');
+  v.splice(i < 0 ? v.length : i, 0, 'encFlexAnt'); v.splice(v.indexOf('adamsPost') + 1, 0, 'encFlexLatD', 'encFlexLatE');
+  KINDS[k].views = v;
+}
+KINDS.adams.desc = 'Flexão anterior em pé: vista anterior, vista posterior (teste de Adams, rotação do tronco) e vistas laterais direita e esquerda (flexibilidade da cadeia posterior).';
+{ const base = slotsOf; slotsOf = a => { const s = base(a); return s === KINDS[kindOf(a)].views && a.views?.adamsLat?.img && !s.includes('adamsLat') ? [...s, 'adamsLat'] : s; }; }
 
 KINDS.encurt = {
   label: 'Testes de encurtamento', icon: 'E',

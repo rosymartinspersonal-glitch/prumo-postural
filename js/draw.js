@@ -183,7 +183,7 @@ async function seedExample() {
   const dates = [new Date(Date.now() - 864e5 * 84), new Date(Date.now() - 864e5 * 2)];
   for (let i = 0; i < 2; i++) {
     const views = {};
-    for (const vk of KINDS.postural.views) { const P = shiftedTpl(VIEWS[vk], w, h, shifts[i][vk], U); views[vk] = { img: drawMannequin(vk, P, w, h), points: P, mask: false, scale: null }; }
+    for (const vk of ['front', 'back', 'latD', 'latE', 'adamsPost', 'adamsLat']) { const P = shiftedTpl(VIEWS[vk], w, h, shifts[i][vk], U); views[vk] = { img: drawMannequin(vk, P, w, h), points: P, mask: false, scale: null }; }
     await Store.put('assessments', { id: uid(), patientId: pid, kind: 'postural', date: dates[i].toISOString(), views, notes: i ? 'Após 12 sessões de fisioterapia e ajuste ergonômico do posto de trabalho.' : '', conclusion: '', example: true, createdAt: dates[i].toISOString() });
   }
 }
