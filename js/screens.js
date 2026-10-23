@@ -614,12 +614,33 @@ SCREENS.settings = async () => {
     </div>
     <h2 class="sethead">Segurança e privacidade</h2>
     <div class="setlist">
+      <details class="setitem" id="lock-item"><summary><span class="sico">🔒</span><span><b>Senha do app</b><small id="lock-sum">Pedir senha ao abrir o TEAMRM</small></span></summary><div class="stack" id="lock-box"></div></details>
       <details class="setitem"><summary><span class="sico">⛨</span><span><b>Permissões</b><small>Câmera e armazenamento deste aparelho</small></span></summary><div class="stack" id="perms"><p class="muted" style="margin:0">Verificando…</p></div></details>
       <button class="setitem setbtn" id="go-privacy"><span class="sico">✓</span><span><b>Política de privacidade</b><small>Como os dados são tratados (LGPD)</small></span><span aria-hidden="true">›</span></button>
       <button class="setitem setbtn" id="go-terms"><span class="sico">§</span><span><b>Termos de uso</b><small>Condições de uso e da assinatura</small></span><span aria-hidden="true">›</span></button>
     </div>
     <p class="muted" style="text-align:center;font-size:.8rem;margin:8px 0 0">TEAMRM - Posture & Correction · versão ${APP_VERSION}</p>`;
 
+  const drawLock = async () => {
+    const L = await AppLock.get(), on = !!L?.on;
+    $('#lock-sum').textContent = on ? 'Ligada · pede senha ao abrir' : 'Desligada';
+    $('#lock-box').innerHTML = `<label class="switch"><input type="checkbox" id="lock-on" ${on ? 'checked' : ''}><span class="sw" aria-hidden="true"></span>Pedir senha ao abrir o app</label>
+      ${on ? `<label class="f" style="max-width:280px">Pedir de novo depois de sair do app por<select id="lock-after">${[[0, 'Sempre (na hora)'], [1, '1 minuto'], [5, '5 minutos'], [15, '15 minutos'], [60, '1 hora']].map(([v, l]) => `<option value="${v}"${(L.after || 0) === v ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+      <div class="row"><button class="btn small" id="lock-now">Bloquear agora</button><button class="btn small" id="lock-chg">Trocar senha</button><button class="btn small" id="lock-code">Novo código de recuperação</button></div>` : ''}
+      <p class="muted" style="margin:0;font-size:.85rem">A senha protege a tela do app neste aparelho. Se esquecer, use o código de recuperação${Billing.enabled ? ' ou entre com a sua conta' : ''}. Mantenha também o bloqueio do próprio celular ligado.</p>`;
+    $('#lock-on').onchange = async e => {
+      const ok = e.target.checked ? await AppLock.enableFlow() : await AppLock.disableFlow();
+      if (ok) toast(e.target.checked ? 'Senha do app ligada' : 'Senha do app desligada');
+      drawLock();
+    };
+    if (on) {
+      $('#lock-after').onchange = async e => { await AppLock.setAfter(+e.target.value); toast('Salvo'); };
+      $('#lock-now').onclick = () => AppLock.lockNow();
+      $('#lock-chg').onclick = async () => { if (await AppLock.changeFlow()) toast('Senha trocada'); };
+      $('#lock-code').onclick = () => AppLock.newCodeFlow();
+    }
+  };
+  drawLock();
   $('#go-plans').onclick = () => go('plans');
   $('#go-help').onclick = () => go('help');
   $('#go-privacy').onclick = () => go('legal', { doc: 'privacy' });

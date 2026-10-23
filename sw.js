@@ -1,6 +1,6 @@
 // TEAMRM - Posture & Correction — service worker: funciona offline depois da primeira visita.
-const VERSION = 'teamrm-v14';
-const SHELL = ['./', 'index.html', 'js/config.js', 'js/core.js', 'js/views.js', 'js/detect.js', 'js/draw.js', 'js/photoedit.js', 'js/exercises.js', 'js/anim.js', 'js/content.js', 'js/screens.js', 'js/screens-ex.js', 'js/home.js', 'js/billing.js', 'js/legal.js', 'js/video.js', 'js/pdf.js', 'js/main.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'assets/logo.png', 'assets/logo-mark.png', 'assets/favicon.png', 'assets/apple-touch-icon.png'];
+const VERSION = 'teamrm-v15';
+const SHELL = ['./', 'index.html', 'js/config.js', 'js/core.js', 'js/views.js', 'js/detect.js', 'js/draw.js', 'js/photoedit.js', 'js/exercises.js', 'js/anim.js', 'js/content.js', 'js/screens.js', 'js/screens-ex.js', 'js/home.js', 'js/billing.js', 'js/legal.js', 'js/video.js', 'js/pdf.js', 'js/lock.js', 'js/main.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'assets/logo.png', 'assets/logo-mark.png', 'assets/favicon.png', 'assets/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
