@@ -69,7 +69,7 @@ formulário de paciente, toast, modal de confirmação, barra de navegação inf
 ## 6. Modelo de dados inferido
 
 ```
-Clinica      nome, profissional, registro (CREFITO), logo, unidades   — evidência: "add logos" no PDF — alta
+Clinica      nome, profissional, registro (CREF), logo, unidades   — evidência: "add logos" no PDF — alta
 Paciente     id, nome, nascimento, sexo, altura_cm, peso_kg, queixa, notas — evidência: IMC no Edit-PDF — alta
 Avaliacao    id, paciente_id, data, vistas{frente,costas,lat_d,lat_e}, conclusao, notas — alta
 Vista        tipo, foto(blob), landmarks{nome:{x,y}}, escala_px_cm?, mascara_rosto — alta

@@ -22,7 +22,7 @@ async function exportPDF(a, p) {
   doc.text(pdfSafe(S.clinic || 'TEAMRM - Posture & Correction'), M, 10);
   doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
   if (S.pdfSubtitle) doc.text(pdfSafe(S.pdfSubtitle), M, 15);
-  doc.text(pdfSafe([S.professional, S.registry].filter(Boolean).join(' · ')), M, S.pdfSubtitle ? 20 : 16);
+  doc.text(pdfSafe([S.professional, crefFmt(S.registry)].filter(Boolean).join(' · ')), M, S.pdfSubtitle ? 20 : 16);
   if (S.contact) doc.text(pdfSafe(S.contact), M, S.pdfSubtitle ? 24.5 : 21);
   const canCustom = Billing.can(await Billing.plan(), 'pdfCustom');
   if (S.logo && canCustom) { try { const li = await loadImg(S.logo), lh = 20, lw = Math.min(50, lh * li.naturalWidth / li.naturalHeight); doc.setFillColor(255, 255, 255); doc.roundedRect(W - M - lw - 2, 4, lw + 4, lh, 2, 2, 'F'); doc.addImage(S.logo, 'PNG', W - M - lw, 4, lw, lh); } catch { } }
@@ -140,7 +140,7 @@ async function exportPDF(a, p) {
   need(30); y = Math.max(y + 18, Hh - 40);
   doc.setDrawColor(...INK); doc.line(W / 2 - 40, y, W / 2 + 40, y);
   doc.setFontSize(9); doc.setTextColor(...INK); doc.text(pdfSafe(S.professional || 'Profissional responsável'), W / 2, y + 4.5, { align: 'center' });
-  if (S.registry) doc.text(pdfSafe(S.registry), W / 2, y + 9, { align: 'center' });
+  if (S.registry) doc.text(pdfSafe(crefFmt(S.registry)), W / 2, y + 9, { align: 'center' });
   const n = doc.getNumberOfPages();
   for (let i = 1; i <= n; i++) {
     doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(...MUT);

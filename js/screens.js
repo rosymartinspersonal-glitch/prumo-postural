@@ -560,7 +560,7 @@ SCREENS.settings = async () => {
       <div class="grid-form">
         <label class="f" style="grid-column:1/-1">Nome da clínica<input id="s-clinic" value="${esc(S.clinic)}" placeholder="Ex.: Clínica Movimento Fisioterapia"></label>
         <label class="f">Profissional responsável<input id="s-prof" value="${esc(S.professional)}"></label>
-        <label class="f">Registro profissional<input id="s-reg" value="${esc(S.registry)}" placeholder="CREFITO-4 000000-F"></label>
+        <label class="f">Número do CREF<input id="s-reg" value="${esc(S.registry)}" placeholder="000000-G/SP"></label>
         <label class="f" style="grid-column:1/-1">Contato no cabeçalho<input id="s-contact" value="${esc(S.contact)}" placeholder="Endereço, telefone, Instagram"></label>
         <label class="f" style="grid-column:1/-1">Frase do banner do PDF<input id="s-sub" value="${esc(S.pdfSubtitle)}" placeholder="Ex.: Fisioterapia postural e RPG"></label>
         <label class="f">Cor do banner do PDF<input id="s-pdfc" type="color" value="${esc(S.pdfColor)}" style="height:42px;padding:4px"></label>
@@ -664,7 +664,7 @@ SCREENS.settings = async () => {
   };
   $('#sf').onsubmit = async e => {
     e.preventDefault();
-    Object.assign(S, { clinic: $('#s-clinic').value.trim(), professional: $('#s-prof').value.trim(), registry: $('#s-reg').value.trim(), contact: $('#s-contact').value.trim(), lineColor: $('#s-color').value,
+    Object.assign(S, { clinic: $('#s-clinic').value.trim(), professional: $('#s-prof').value.trim(), registry: crefFmt($('#s-reg').value), contact: $('#s-contact').value.trim(), lineColor: $('#s-color').value,
       pdfSubtitle: $('#s-sub').value.trim(), pdfColor: $('#s-pdfc').value, palette: $('#s-pal').value, theme: $('#s-theme').value, pdfExplain: $('#s-exp').checked, pdfExercises: $('#s-pex').checked });
     await Store.put('settings', S); applyPalette(S); toast('Configurações salvas');
   };

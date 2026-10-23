@@ -3,6 +3,8 @@
 
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+// registro profissional: sempre no formato "CREF 000000-G/SP" (troca CREFITO por CREF)
+const crefFmt = v => { v = String(v || '').trim().replace(/^crefito[\s\-:]*(\d+\s*[-:]?\s*)?/i, '').replace(/^cref[\s\-:]*/i, '').trim(); return v ? 'CREF ' + v : ''; };
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 const nf = (v, d = 1) => (v == null || isNaN(v)) ? '—' : Number(v).toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d });
