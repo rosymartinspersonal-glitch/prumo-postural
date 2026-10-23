@@ -746,7 +746,7 @@ SCREENS.settings = async () => {
   };
   const lr = $('#s-logo-rm'); if (lr) lr.onclick = async () => { S.logo = ''; await Store.put('settings', S); go('settings'); };
   $('#bk-out').onclick = async () => {
-    const data = { app: 'teamrm-posture', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments'), students: await Store.all('students'), catalog: (await Store.get('settings', 'catalog'))?.list || null, services: (await Store.get('settings', 'services'))?.list || null, customEx: (await Store.get('settings', 'customEx'))?.list || [] };
+    const data = { app: 'teamrm-posture', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments'), students: await Store.all('students'), catalog: (await Store.get('settings', 'catalog'))?.list || null, services: (await Store.get('settings', 'services'))?.list || null, plans: (await Store.get('settings', 'plans'))?.list || null, customEx: (await Store.get('settings', 'customEx'))?.list || [] };
     downloadBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), `teamrm-backup-${new Date().toISOString().slice(0, 10)}.json`); toast('Backup exportado');
   };
   $('#bk-in').onchange = async e => {
@@ -759,6 +759,7 @@ SCREENS.settings = async () => {
       for (const st of (d.students || [])) await Store.put('students', st);
       if (Array.isArray(d.catalog) && d.catalog.length) await Store.put('settings', { id: 'catalog', list: d.catalog });
       if (Array.isArray(d.services) && d.services.length) await Store.put('settings', { id: 'services', list: d.services });
+      if (Array.isArray(d.plans) && d.plans.length) await Store.put('settings', { id: 'plans', list: d.plans });
       if (Array.isArray(d.customEx) && d.customEx.length) { const cur = (await Store.get('settings', 'customEx'))?.list || []; const ids = new Set(d.customEx.map(x => x.id)); await saveCustomEx([...cur.filter(x => !ids.has(x.id)), ...d.customEx]); }
       if (d.settings) await Store.put('settings', { ...d.settings, id: 'main', seeded: true });
       toast('Backup restaurado'); go('patients');
