@@ -25,11 +25,14 @@ const HOME_CARDS = [['rapida', 'Avaliação rápida'], ['postural', 'Postura com
 
 SCREENS.home = async () => {
   const plan = await Billing.plan();
+  let strip = ''; try { strip = await alunosHomeStrip(); } catch (e) { }
   app.innerHTML = `<div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">TEAMRM · Posture & Correction</span><h1>O que vamos avaliar?</h1></div>
       ${Billing.enforce ? `<button class="planpill" id="pp">${esc(PLANS[plan].label)}</button>` : ''}</div>
+    ${strip}
     <div class="homegrid">${HOME_CARDS.map(([k, l]) => { const locked = k !== 'exercicios' && !Billing.can(plan, k); return `<button class="hcard${locked ? ' locked' : ''}" data-k="${k}"><span class="hart">${ART[k]}</span><b>${esc(l)}</b>${locked ? `<span class="lock" aria-label="Exige plano ${esc(PLANS[Billing.minPlan(k)].label)}"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>` : ''}</button>`; }).join('')}</div>
     <div class="tipday"><span class="eyebrow">Dica do dia</span><p style="margin:4px 0 0">${esc(tipOfDay())}</p></div>`;
   const pp = $('#pp'); if (pp) pp.onclick = () => go('plans');
+  const als = $('#al-strip'); if (als) als.onclick = () => go('alunos', { tab: 'lembretes' });
   $$('.hcard').forEach(b => b.onclick = () => {
     const k = b.dataset.k;
     if (k === 'exercicios') return go('exercises');

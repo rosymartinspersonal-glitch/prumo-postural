@@ -26,12 +26,12 @@ const initials = n => (n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w 
 /* ---------- armazenamento (IndexedDB, com memória como reserva) ---------- */
 const Store = (() => {
   let db = null;
-  const STORES = ['patients', 'assessments', 'settings', 'media', 'workouts'];
+  const STORES = ['patients', 'assessments', 'settings', 'media', 'workouts', 'students'];
   const mem = Object.fromEntries(STORES.map(k => [k, new Map()]));
   function open() {
     return new Promise(res => {
       try {
-        const r = indexedDB.open('prumo', 2);   // nome interno mantido para não perder dados
+        const r = indexedDB.open('prumo', 3);   // nome interno mantido para não perder dados
         r.onupgradeneeded = () => { const d = r.result; for (const s of STORES) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' }); };
         r.onsuccess = () => { db = r.result; res(); };
         r.onerror = () => res();

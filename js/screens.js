@@ -40,8 +40,8 @@ function applyPalette(S) {
 
 /* ---------- navegação ---------- */
 let cleanup = null;
-const NAV = { home: 'nav-home', patients: 'nav-patients', results: 'nav-results', settings: 'nav-settings', plans: 'nav-plans' };
-const SECTION = { home: 'home', exercises: 'home', exercise: 'home', workout: 'home', workouts: 'home', results_db: 'results', settings: 'settings', help: 'settings', legal: 'settings', plans: 'plans' };
+const NAV = { home: 'nav-home', patients: 'nav-patients', alunos: 'nav-alunos', results: 'nav-results', settings: 'nav-settings', plans: 'nav-plans' };
+const SECTION = { home: 'home', exercises: 'home', exercise: 'home', workout: 'home', workouts: 'home', results_db: 'results', settings: 'settings', help: 'settings', legal: 'settings', plans: 'plans', alunos: 'alunos', aluno: 'alunos', alunoForm: 'alunos' };
 function go(name, p = {}) {
   if (cleanup) { try { cleanup(); } catch (e) { } cleanup = null; }
   window.scrollTo(0, 0);
@@ -161,6 +161,7 @@ function assessSummary(a) {
 SCREENS.patient = async ({ id }) => {
   const p = await Store.get('patients', id); if (!p) return go('patients');
   const as = (await Store.all('assessments')).filter(a => a.patientId === id).sort((a, b) => b.date.localeCompare(a.date));
+  const stu = (await Store.all('students')).filter(x => x.patientId === id);
   const ag = age(p.birth), im = bmi(p), sexo = { F: 'Feminino', M: 'Masculino', O: 'Outro' }[p.sex] || '';
   // séries para o gráfico de evolução
   const series = {};
@@ -180,6 +181,7 @@ SCREENS.patient = async ({ id }) => {
         <span class="muted">${[ag != null ? ag + ' anos' : '', sexo, p.height ? nf(cmOut(p.height), 0) + ' ' + cmUnit() : '', p.weight ? nf(kgOut(p.weight)) + ' ' + kgUnit() : '', im ? 'IMC ' + nf(im) : ''].filter(Boolean).join(' · ') || 'Sem dados clínicos'}</span></div></div>
       <div class="row"><button class="btn" id="edit">Editar</button><button class="btn danger" id="del">Excluir</button></div>
     </div>
+    ${stu.length ? stu.map(x => { const k = AL.days(x.end, AL.today()); return `<button class="alstrip" data-stu="${x.id}" style="border-color:var(--line)"><span class="kicon" aria-hidden="true">RM</span><span style="min-width:0"><b>Aluno · ${esc(x.service || 'Plano')}${x.plan ? ' ' + esc(x.plan) : ''}</b><br><span class="muted" style="font-size:.86rem">${x.end ? (k < 0 ? 'Venceu em ' : 'Até ') + esc(AL.br(x.end)) : 'Sem término'} · ${esc(x.situation || '')}</span></span><span aria-hidden="true">›</span></button>`; }).join('') : `<div><button class="btn small ghost" id="mk-stu">+ Cadastrar como aluno (plano, revisões e pagamento)</button></div>`}
     ${p.complaint ? `<div class="panel"><span class="eyebrow">Queixa principal</span><p style="margin:6px 0 0">${esc(p.complaint)}</p></div>` : ''}
     <div class="row spread"><h2>Avaliações</h2><button class="btn primary" id="new-a">+ Nova avaliação</button></div>
     <div>${as.length ? `<div class="plist">${as.map(a => {
@@ -193,6 +195,8 @@ SCREENS.patient = async ({ id }) => {
     ${evoKeys.length ? `<section class="panel stack"><div class="row spread"><h2>Evolução</h2><label class="f" style="min-width:min(100%,320px)">Medida<select id="evo">${evoKeys.map(k => `<option value="${esc(k)}">${esc(series[k].label)}</option>`).join('')}</select></label></div><div id="evo-chart"></div></section>` : ''}`;
   bindBack('patients');
   $('#edit').onclick = () => go('patientForm', { id });
+  $$('[data-stu]').forEach(b => b.onclick = () => go('aluno', { id: b.dataset.stu }));
+  const mk = $('#mk-stu'); if (mk) mk.onclick = () => go('alunoForm', { patientId: id });
   $('#del').onclick = async () => {
     if (!(await confirmBox('Excluir paciente?', `${p.name} e as ${as.length} avaliações serão apagados deste aparelho. Essa ação não pode ser desfeita.`))) return;
     for (const a of as) await Store.del('assessments', a.id);
@@ -742,16 +746,18 @@ SCREENS.settings = async () => {
   };
   const lr = $('#s-logo-rm'); if (lr) lr.onclick = async () => { S.logo = ''; await Store.put('settings', S); go('settings'); };
   $('#bk-out').onclick = async () => {
-    const data = { app: 'teamrm-posture', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments'), customEx: (await Store.get('settings', 'customEx'))?.list || [] };
+    const data = { app: 'teamrm-posture', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments'), students: await Store.all('students'), catalog: (await Store.get('settings', 'catalog'))?.list || null, customEx: (await Store.get('settings', 'customEx'))?.list || [] };
     downloadBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), `teamrm-backup-${new Date().toISOString().slice(0, 10)}.json`); toast('Backup exportado');
   };
   $('#bk-in').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     try {
       const d = JSON.parse(await f.text()); if (!['teamrm-posture', 'prumo-postural'].includes(d.app)) throw new Error('arquivo não é um backup do TEAMRM');
-      if (!(await confirmBox('Restaurar backup?', `${d.patients.length} pacientes e ${d.assessments.length} avaliações serão adicionados ou substituídos neste aparelho.`, 'Restaurar'))) return;
+      if (!(await confirmBox('Restaurar backup?', `${d.patients.length} pacientes, ${d.assessments.length} avaliações${d.students?.length ? ' e ' + d.students.length + ' alunos' : ''} serão adicionados ou substituídos neste aparelho.`, 'Restaurar'))) return;
       for (const p of d.patients) await Store.put('patients', p);
       for (const a of d.assessments) await Store.put('assessments', a);
+      for (const st of (d.students || [])) await Store.put('students', st);
+      if (Array.isArray(d.catalog) && d.catalog.length) await Store.put('settings', { id: 'catalog', list: d.catalog });
       if (Array.isArray(d.customEx) && d.customEx.length) { const cur = (await Store.get('settings', 'customEx'))?.list || []; const ids = new Set(d.customEx.map(x => x.id)); await saveCustomEx([...cur.filter(x => !ids.has(x.id)), ...d.customEx]); }
       if (d.settings) await Store.put('settings', { ...d.settings, id: 'main', seeded: true });
       toast('Backup restaurado'); go('patients');
