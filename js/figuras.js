@@ -61,7 +61,7 @@ const POSE_FIG = (() => {
     }).join('');
     const neck = seg(T, { x: T.x, y: T.y - 6 * p.hd }, 7, SKIN);
     let head;
-    if (p.back || p.hairOnly) head = dot(H, L.hr + 0.6, HAIR) + dot({ x: H.x, y: H.y - (L.hr + 2) * Math.sign(p.hd) }, 4.5, HAIR);
+    if (p.back || (p.hairOnly && p.hd < 0.3)) head = dot(H, L.hr + 0.6, HAIR) + dot({ x: H.x, y: H.y - (L.hr + 2) * Math.sign(p.hd) }, 4.5, HAIR);
     else head = dot({ x: H.x, y: H.y - 1.8 }, L.hr + 0.7, HAIR) + dot({ x: H.x, y: H.y + 1.3 }, L.hr - 0.9, SKIN) + dot({ x: H.x, y: H.y - L.hr - 3 }, 4.2, HAIR)
       + dot({ x: H.x - 3.2, y: H.y }, 1.2, '#222') + dot({ x: H.x + 3.2, y: H.y }, 1.2, '#222') + `<path d="M${r1(H.x - 2.5)} ${r1(H.y + 4)} Q${r1(H.x)} ${r1(H.y + 5.6)} ${r1(H.x + 2.5)} ${r1(H.y + 4)}" stroke="#7a3b2a" stroke-width="1" fill="none"/>`;
     const upper = neck + torso + top + arms + head;
