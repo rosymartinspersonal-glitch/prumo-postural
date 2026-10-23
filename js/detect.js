@@ -6,6 +6,7 @@
 const MP_VER = '0.10.14';
 const MP_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VER}`;
 const POSE_MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
+const POSE_LITE = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
 const FACE_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 
 let visionPromise = null;
@@ -26,7 +27,10 @@ function model(name) {
     models[name] = (async () => {
       const { v, files } = await vision();
       const base = path => ({ modelAssetPath: path, delegate: 'CPU' });
-      if (name === 'pose') return v.PoseLandmarker.createFromOptions(files, { baseOptions: base(POSE_MODEL), runningMode: 'IMAGE', numPoses: 1, outputSegmentationMasks: true });
+      // pontos sem máscara (bem menos memória); a máscara só é pedida para remover o fundo
+      if (name === 'pose') return v.PoseLandmarker.createFromOptions(files, { baseOptions: base(POSE_MODEL), runningMode: 'IMAGE', numPoses: 1 });
+      if (name === 'poseLite') return v.PoseLandmarker.createFromOptions(files, { baseOptions: base(POSE_LITE), runningMode: 'IMAGE', numPoses: 1 });
+      if (name === 'poseSeg') return v.PoseLandmarker.createFromOptions(files, { baseOptions: base(POSE_MODEL), runningMode: 'IMAGE', numPoses: 1, outputSegmentationMasks: true });
       if (name === 'poseVideo') return v.PoseLandmarker.createFromOptions(files, { baseOptions: base(POSE_MODEL), runningMode: 'VIDEO', numPoses: 1 });
       if (name === 'face') return v.FaceLandmarker.createFromOptions(files, { baseOptions: base(FACE_MODEL), runningMode: 'IMAGE', numFaces: 1 });
       throw new Error('modelo desconhecido');
@@ -36,25 +40,50 @@ function model(name) {
   return models[name];
 }
 
+/* A IA roda dentro do navegador (WebAssembly), com memória limitada no celular. Fotos grandes
+   faziam a IA abortar ("Aborted()"). Agora ela recebe uma cópia reduzida da foto (as coordenadas
+   voltam em proporção, então a precisão na foto original é mantida) e, se ainda assim falhar,
+   o app reinicia a IA e tenta de novo com uma cópia menor e o modelo leve. */
+function aiInput(img, max) {
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, k = Math.min(1, max / Math.max(w, h));
+  if (k === 1) return { src: img, w, h };
+  const c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+  const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(img, 0, 0, c.width, c.height);
+  return { src: c, w, h };
+}
+const aiAborted = e => /abort|memory|RuntimeError|unreachable|out of bounds|wasm/i.test(String(e?.message || e));
+function resetAI() { visionPromise = null; for (const k in models) delete models[k]; }
+async function withAI(name, max, run) {
+  const tries = [[name, max], [name === 'pose' ? 'poseLite' : name, Math.min(max, 640)]];
+  let last;
+  for (let i = 0; i < tries.length; i++) {
+    const [nm, mx] = tries[i];
+    try { const lm = await withTimeout(model(nm), 40000); return run(lm, aiInput(img0(), mx)); }
+    catch (e) { last = e; if (!aiAborted(e) || i === tries.length - 1) break; resetAI(); }
+  }
+  if (aiAborted(last)) throw new Error('a IA ficou sem memória neste celular. Feche outros apps e toque de novo em “Detectar com IA”, ou arraste os pontos à mão');
+  throw last;
+  function img0() { return run.img; }
+}
 async function detectPoseRaw(img) {
-  const lm = await withTimeout(model('pose'), 40000);
-  const r = lm.detect(img);
-  const masks = r.segmentationMasks || [];
-  try {
+  const run = (lm, { src, w, h }) => {
+    const r = lm.detect(src);
+    (r.segmentationMasks || []).forEach(m => m.close && m.close());
     if (!r.landmarks || !r.landmarks.length) throw new Error('Nenhuma pessoa encontrada na foto');
-    const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
     return { L: r.landmarks[0].map(p => ({ x: p.x * w, y: p.y * h })), V: r.landmarks[0].map(p => p.visibility ?? 1), w, h };
-  } finally { masks.forEach(m => m.close && m.close()); }
+  };
+  run.img = img;
+  return withAI('pose', 1024, run);
 }
 
 async function detectPoints(V, img) {
   const w = img.naturalWidth, h = img.naturalHeight;
   let P;
   if (V.detect === 'face') {
-    const fm = await withTimeout(model('face'), 40000);
-    const r = fm.detect(img);
-    if (!r.faceLandmarks || !r.faceLandmarks.length) throw new Error('Nenhum rosto encontrado na foto');
-    P = V.deriveFace(r.faceLandmarks[0].map(p => ({ x: p.x * w, y: p.y * h })));
+    const run = (fm, { src }) => { const r = fm.detect(src); if (!r.faceLandmarks || !r.faceLandmarks.length) throw new Error('Nenhum rosto encontrado na foto'); return r.faceLandmarks[0]; };
+    run.img = img;
+    const F = await withAI('face', 1280, run);
+    P = V.deriveFace(F.map(p => ({ x: p.x * w, y: p.y * h })));
   } else if (V.detect === 'pose' && V.derive) {
     const { L, V: vis } = await detectPoseRaw(img);
     P = V.derive(L, w, h, vis);
@@ -66,8 +95,8 @@ async function detectPoints(V, img) {
 
 /* Remoção de fundo pela máscara de segmentação da pose */
 async function removeBackground(img, bg = [221, 226, 236]) {
-  const lm = await withTimeout(model('pose'), 40000);
-  const r = lm.detect(img);
+  const lm = await withTimeout(model('poseSeg'), 40000);
+  let r; try { r = lm.detect(aiInput(img, 1024).src); } catch (e) { if (aiAborted(e)) { resetAI(); throw new Error('a IA ficou sem memória neste celular; feche outros apps e tente de novo'); } throw e; }
   const mask = r.segmentationMasks && r.segmentationMasks[0];
   if (!mask) throw new Error('Não foi possível separar a pessoa do fundo');
   try {

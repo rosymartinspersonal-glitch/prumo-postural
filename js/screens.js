@@ -333,7 +333,7 @@ SCREENS.mark = async ({ id, slot, auto }) => {
         <label class="f" id="cal-f" ${vd.scale?.on ? '' : 'hidden'}>Comprimento real da régua (${cmUnit()})<input id="cal-cm" type="number" inputmode="decimal" min="0.5" step="0.1" value="${+cmOut(vd.scale?.cm || 100).toFixed(1)}"></label>
         <div><span class="eyebrow">Pontos</span></div>
         <div class="plist2" id="plist" role="list"></div>
-        <button class="btn primary" id="done">Concluir</button>
+        <button class="btn primary markdone" id="done">✓ Salvar e concluir</button>
       </aside>
     </div>`;
   bindBack('assessment', { id });
@@ -465,7 +465,7 @@ SCREENS.mark = async ({ id, slot, auto }) => {
   $('#done').onclick = async () => {
     clearTimeout(saveT); await Store.put('assessments', a);
     const miss = V.points.filter(([k, , o]) => !o && !vd.points[k]).length;
-    if (miss) toast(`Faltam ${miss} pontos nesta vista`);
+    toast(miss ? `Trabalho salvo. Faltam ${miss} pontos nesta vista; você pode terminar depois.` : 'Trabalho salvo.', 3500);
     go('assessment', { id });
   };
   const onR = () => layout(); window.addEventListener('resize', onR);
