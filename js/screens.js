@@ -616,6 +616,8 @@ SCREENS.settings = async () => {
         <label class="f">Cores do aplicativo<select id="s-pal">${Object.entries(PALETTES).map(([k, l]) => `<option value="${k}"${S.palette === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
         <div class="f">Logotipo<div class="row" style="gap:8px">${S.logo ? `<img src="${S.logo}" alt="Logotipo atual" style="height:40px;max-width:120px;object-fit:contain;background:#fff;border-radius:6px;padding:2px">` : ''}
           <label class="btn small" style="cursor:pointer">${S.logo ? 'Trocar' : 'Enviar imagem'}<input type="file" accept="image/*" id="s-logo" hidden></label>${S.logo ? '<button type="button" class="btn small ghost danger" id="s-logo-rm">Remover</button>' : ''}</div></div>
+        <div class="f">Assinatura do laudo (PDF)<div class="row" style="gap:8px">${S.signature ? `<img src="${S.signature}" alt="Assinatura atual" style="height:40px;max-width:160px;object-fit:contain;background:#fff;border-radius:6px;padding:2px">` : ''}
+          <label class="btn small" style="cursor:pointer">${S.signature ? 'Trocar' : 'Enviar imagem'}<input type="file" accept="image/*" id="s-sig" hidden></label>${S.signature ? '<button type="button" class="btn small ghost danger" id="s-sig-rm">Remover</button>' : ''}</div><small class="muted">Foto ou imagem da assinatura em fundo branco; o fundo é removido e ela entra acima da linha de assinatura do laudo.</small></div>
         <label class="row" style="gap:8px;grid-column:1/-1"><input type="checkbox" id="s-exp" ${S.pdfExplain ? 'checked' : ''}> Incluir a interpretação de cada medida no PDF</label>
         <label class="row" style="gap:8px;grid-column:1/-1"><input type="checkbox" id="s-pex" ${S.pdfExercises ? 'checked' : ''}> Incluir exercícios sugeridos no PDF (quando marcados na avaliação)</label>
       </div>
@@ -753,6 +755,25 @@ SCREENS.settings = async () => {
     await Store.put('settings', S); toast('Logotipo salvo'); go('settings');
   };
   const lr = $('#s-logo-rm'); if (lr) lr.onclick = async () => { S.logo = ''; await Store.put('settings', S); go('settings'); };
+  $('#s-sig').onchange = async e => {
+    const f = e.target.files[0]; if (!f) return;
+    const u = URL.createObjectURL(f), im = await loadImg(u); URL.revokeObjectURL(u);
+    const k = Math.min(1, 900 / Math.max(im.naturalWidth, im.naturalHeight)), w = Math.round(im.naturalWidth * k), h = Math.round(im.naturalHeight * k);
+    const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.drawImage(im, 0, 0, w, h);
+    // fundo claro vira transparente; o traço fica escuro; recorta as margens vazias
+    const d = g.getImageData(0, 0, w, h), px = d.data; let x0 = w, y0 = h, x1 = -1, y1 = -1;
+    for (let i = 0; i < px.length; i += 4) {
+      const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2], a = Math.max(0, Math.min(255, Math.round((235 - lum) * 255 / 175)));
+      px[i] = px[i + 1] = px[i + 2] = 17; px[i + 3] = Math.round(a * px[i + 3] / 255);
+      if (px[i + 3] > 40) { const p = i / 4, x = p % w, y = (p - x) / w; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+    }
+    if (x1 < 0) return toast('Não encontrei a assinatura na imagem');
+    g.putImageData(d, 0, 0);
+    const pd = 6, cx = Math.max(0, x0 - pd), cy = Math.max(0, y0 - pd), cw = Math.min(w, x1 + pd) - cx, ch = Math.min(h, y1 + pd) - cy;
+    const o = document.createElement('canvas'); o.width = cw; o.height = ch; o.getContext('2d').drawImage(c, cx, cy, cw, ch, 0, 0, cw, ch);
+    S.signature = o.toDataURL('image/png'); await Store.put('settings', S); toast('Assinatura salva'); go('settings');
+  };
+  const sr = $('#s-sig-rm'); if (sr) sr.onclick = async () => { S.signature = ''; await Store.put('settings', S); go('settings'); };
   $('#bk-out').onclick = async () => {
     const data = { app: 'teamrm-posture', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments'), students: await Store.all('students'), pcClients: await Store.all('pcClients'), pcContracts: await Store.all('pcContracts'), pcTemplates: await Store.all('pcTemplates'), catalog: (await Store.get('settings', 'catalog'))?.list || null, services: (await Store.get('settings', 'services'))?.list || null, plans: (await Store.get('settings', 'plans'))?.list || null, payTypes: (await Store.get('settings', 'payTypes'))?.list || null, payMethods: (await Store.get('settings', 'payMethods'))?.list || null, customEx: (await Store.get('settings', 'customEx'))?.list || [] };
     downloadBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), `teamrm-backup-${new Date().toISOString().slice(0, 10)}.json`); toast('Backup exportado');

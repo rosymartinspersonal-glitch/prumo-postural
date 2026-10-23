@@ -141,7 +141,8 @@ async function exportPDF(a, p) {
   }
   if (a.notes) { y += 3; h2('Observações da coleta'); para(a.notes); }
   if (a.conclusion) { y += 3; h2('Conclusão do profissional'); para(a.conclusion); }
-  need(30); y = Math.max(y + 18, Hh - 40);
+  need(S.signature ? 44 : 30); y = Math.max(y + (S.signature ? 30 : 18), Hh - 40);
+  if (S.signature) { try { const si = await loadImg(S.signature), r = si.naturalWidth / si.naturalHeight; let sw = 60, sh = sw / r; if (sh > 22) { sh = 22; sw = sh * r; } doc.addImage(S.signature, 'PNG', W / 2 - sw / 2, y - sh + 3, sw, sh); } catch { } }
   doc.setDrawColor(...INK); doc.line(W / 2 - 40, y, W / 2 + 40, y);
   doc.setFontSize(9); doc.setTextColor(...INK); doc.text(pdfSafe(S.professional || 'Profissional responsável'), W / 2, y + 4.5, { align: 'center' });
   if (S.registry) doc.text(pdfSafe(crefFmt(S.registry)), W / 2, y + 9, { align: 'center' });
