@@ -17,6 +17,56 @@ function confirmBox(title, body, okLabel = 'Excluir') {
   });
 }
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = () => rej(new Error('Falha ao carregar ' + src)); document.head.appendChild(s); }); }
+/* ---------- assinatura da profissional (laudo e contratos) ---------- */
+// imagem de assinatura em fundo claro → traço escuro em fundo transparente, sem margens
+async function sigClean(src) {
+  const im = await loadImg(src), k = Math.min(1, 900 / Math.max(im.naturalWidth, im.naturalHeight)), w = Math.round(im.naturalWidth * k), h = Math.round(im.naturalHeight * k);
+  const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(im, 0, 0, w, h);
+  const d = g.getImageData(0, 0, w, h), px = d.data; let x0 = w, y0 = h, x1 = -1, y1 = -1;
+  for (let i = 0; i < px.length; i += 4) {
+    const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2], a = Math.max(0, Math.min(255, Math.round((235 - lum) * 255 / 175)));
+    px[i] = px[i + 1] = px[i + 2] = 17; px[i + 3] = a;
+    if (a > 40) { const p = i / 4, x = p % w, y = (p - x) / w; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+  }
+  if (x1 < 0) return null;
+  g.putImageData(d, 0, 0);
+  const pd = 6, cx = Math.max(0, x0 - pd), cy = Math.max(0, y0 - pd), cw = Math.min(w, x1 + pd) - cx, ch = Math.min(h, y1 + pd) - cy;
+  const o = document.createElement('canvas'); o.width = cw; o.height = ch; o.getContext('2d').drawImage(c, cx, cy, cw, ch, 0, 0, cw, ch);
+  return o.toDataURL('image/png');
+}
+// quadro para desenhar a assinatura com o dedo ou o mouse
+function sigDraw() {
+  return new Promise(res => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="panel" role="dialog" aria-modal="true" style="max-width:560px;width:100%"><h2>Desenhar assinatura</h2>
+      <canvas style="width:100%;height:200px;background:#fff;border:1px dashed var(--muted);border-radius:8px;touch-action:none;cursor:crosshair"></canvas>
+      <div class="row spread"><button type="button" class="btn small" data-clear>Limpar</button><span class="row"><button type="button" class="btn" data-x>Cancelar</button><button type="button" class="btn primary" data-ok>Usar esta assinatura</button></span></div></div>`;
+    document.body.appendChild(m);
+    const cv = $('canvas', m), g = cv.getContext('2d'), r = cv.getBoundingClientRect(), dpr = Math.min(3, devicePixelRatio || 1); let on = false, ink = false, last;
+    cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const blank = () => { g.fillStyle = '#fff'; g.fillRect(0, 0, r.width, r.height); g.strokeStyle = '#111'; g.lineWidth = 2.6; g.lineCap = g.lineJoin = 'round'; ink = false; }; blank();
+    const pos = e => { const b = cv.getBoundingClientRect(); return { x: e.clientX - b.left, y: e.clientY - b.top }; };
+    cv.onpointerdown = e => { e.preventDefault(); cv.setPointerCapture(e.pointerId); on = true; last = pos(e); };
+    cv.onpointermove = e => { if (!on) return; const p = pos(e); g.beginPath(); g.moveTo(last.x, last.y); g.lineTo(p.x, p.y); g.stroke(); last = p; ink = true; };
+    cv.onpointerup = cv.onpointercancel = () => { on = false; };
+    const done = v => { m.remove(); res(v); };
+    $('[data-clear]', m).onclick = blank; $('[data-x]', m).onclick = () => done(null);
+    $('[data-ok]', m).onclick = async () => { if (!ink) return toast('Assine no quadro'); done(await sigClean(cv.toDataURL('image/png'))); };
+  });
+}
+// no momento de gerar o laudo, se ainda não há assinatura: enviar imagem, desenhar ou seguir sem
+function sigAsk() {
+  return new Promise(res => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="panel" role="dialog" aria-modal="true"><h2>Assinar o laudo?</h2><p class="muted" style="margin:0">Sua assinatura entra acima da linha com seu nome e registro. Ela fica salva neste aparelho para os próximos laudos (dá para trocar em Ajustes → Personalização dos relatórios).</p>
+      <div class="stack"><label class="btn primary" style="cursor:pointer;justify-content:center">Enviar imagem da assinatura<input type="file" accept="image/*" hidden></label><button type="button" class="btn" data-draw>Desenhar agora</button><button type="button" class="btn ghost" data-skip>Gerar sem assinatura</button></div></div>`;
+    document.body.appendChild(m);
+    const done = v => { m.remove(); res(v); };
+    $('input', m).onchange = async e => { const f = e.target.files[0]; if (!f) return; const u = URL.createObjectURL(f), png = await sigClean(u); URL.revokeObjectURL(u); if (!png) return toast('Não encontrei a assinatura na imagem'); done(png); };
+    $('[data-draw]', m).onclick = async () => { m.style.display = 'none'; const png = await sigDraw(); if (png) done(png); else m.style.display = ''; };
+    $('[data-skip]', m).onclick = () => done('');
+  });
+}
 function downloadBlob(blob, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
@@ -617,7 +667,7 @@ SCREENS.settings = async () => {
         <div class="f">Logotipo<div class="row" style="gap:8px">${S.logo ? `<img src="${S.logo}" alt="Logotipo atual" style="height:40px;max-width:120px;object-fit:contain;background:#fff;border-radius:6px;padding:2px">` : ''}
           <label class="btn small" style="cursor:pointer">${S.logo ? 'Trocar' : 'Enviar imagem'}<input type="file" accept="image/*" id="s-logo" hidden></label>${S.logo ? '<button type="button" class="btn small ghost danger" id="s-logo-rm">Remover</button>' : ''}</div></div>
         <div class="f">Assinatura do laudo (PDF)<div class="row" style="gap:8px">${S.signature ? `<img src="${S.signature}" alt="Assinatura atual" style="height:40px;max-width:160px;object-fit:contain;background:#fff;border-radius:6px;padding:2px">` : ''}
-          <label class="btn small" style="cursor:pointer">${S.signature ? 'Trocar' : 'Enviar imagem'}<input type="file" accept="image/*" id="s-sig" hidden></label>${S.signature ? '<button type="button" class="btn small ghost danger" id="s-sig-rm">Remover</button>' : ''}</div><small class="muted">Foto ou imagem da assinatura em fundo branco; o fundo é removido e ela entra acima da linha de assinatura do laudo.</small></div>
+          <label class="btn small" style="cursor:pointer">${S.signature ? 'Trocar' : 'Enviar imagem'}<input type="file" accept="image/*" id="s-sig" hidden></label><button type="button" class="btn small" id="s-sig-draw">Desenhar</button>${S.signature ? '<button type="button" class="btn small ghost danger" id="s-sig-rm">Remover</button>' : ''}</div><small class="muted">Foto ou imagem da assinatura em fundo branco; o fundo é removido e ela entra acima da linha de assinatura do laudo.</small></div>
         <label class="row" style="gap:8px;grid-column:1/-1"><input type="checkbox" id="s-exp" ${S.pdfExplain ? 'checked' : ''}> Incluir a interpretação de cada medida no PDF</label>
         <label class="row" style="gap:8px;grid-column:1/-1"><input type="checkbox" id="s-pex" ${S.pdfExercises ? 'checked' : ''}> Incluir exercícios sugeridos no PDF (quando marcados na avaliação)</label>
       </div>
@@ -757,22 +807,11 @@ SCREENS.settings = async () => {
   const lr = $('#s-logo-rm'); if (lr) lr.onclick = async () => { S.logo = ''; await Store.put('settings', S); go('settings'); };
   $('#s-sig').onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
-    const u = URL.createObjectURL(f), im = await loadImg(u); URL.revokeObjectURL(u);
-    const k = Math.min(1, 900 / Math.max(im.naturalWidth, im.naturalHeight)), w = Math.round(im.naturalWidth * k), h = Math.round(im.naturalHeight * k);
-    const c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.drawImage(im, 0, 0, w, h);
-    // fundo claro vira transparente; o traço fica escuro; recorta as margens vazias
-    const d = g.getImageData(0, 0, w, h), px = d.data; let x0 = w, y0 = h, x1 = -1, y1 = -1;
-    for (let i = 0; i < px.length; i += 4) {
-      const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2], a = Math.max(0, Math.min(255, Math.round((235 - lum) * 255 / 175)));
-      px[i] = px[i + 1] = px[i + 2] = 17; px[i + 3] = Math.round(a * px[i + 3] / 255);
-      if (px[i + 3] > 40) { const p = i / 4, x = p % w, y = (p - x) / w; if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
-    }
-    if (x1 < 0) return toast('Não encontrei a assinatura na imagem');
-    g.putImageData(d, 0, 0);
-    const pd = 6, cx = Math.max(0, x0 - pd), cy = Math.max(0, y0 - pd), cw = Math.min(w, x1 + pd) - cx, ch = Math.min(h, y1 + pd) - cy;
-    const o = document.createElement('canvas'); o.width = cw; o.height = ch; o.getContext('2d').drawImage(c, cx, cy, cw, ch, 0, 0, cw, ch);
-    S.signature = o.toDataURL('image/png'); await Store.put('settings', S); toast('Assinatura salva'); go('settings');
+    const u = URL.createObjectURL(f), png = await sigClean(u); URL.revokeObjectURL(u);
+    if (!png) return toast('Não encontrei a assinatura na imagem');
+    S.signature = png; await Store.put('settings', S); toast('Assinatura salva'); go('settings');
   };
+  $('#s-sig-draw').onclick = async () => { const png = await sigDraw(); if (!png) return; S.signature = png; await Store.put('settings', S); toast('Assinatura salva'); go('settings'); };
   const sr = $('#s-sig-rm'); if (sr) sr.onclick = async () => { S.signature = ''; await Store.put('settings', S); go('settings'); };
   $('#bk-out').onclick = async () => {
     const data = { app: 'teamrm-posture', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments'), students: await Store.all('students'), pcClients: await Store.all('pcClients'), pcContracts: await Store.all('pcContracts'), pcTemplates: await Store.all('pcTemplates'), catalog: (await Store.get('settings', 'catalog'))?.list || null, services: (await Store.get('settings', 'services'))?.list || null, plans: (await Store.get('settings', 'plans'))?.list || null, payTypes: (await Store.get('settings', 'payTypes'))?.list || null, payMethods: (await Store.get('settings', 'payMethods'))?.list || null, customEx: (await Store.get('settings', 'customEx'))?.list || [] };

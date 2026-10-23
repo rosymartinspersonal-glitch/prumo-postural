@@ -105,6 +105,8 @@ const AL = (() => {
   const remTitle = x => x.kind === 'expiry' ? 'Vencimento do plano' : isTraining(x.record.service) ? 'Troca de treino' : 'Revisão do acompanhamento';
   const whenTxt = k => k === 0 ? 'Hoje' : k < 0 ? `${-k} ${k === -1 ? 'dia' : 'dias'} em atraso` : `Em ${k} ${k === 1 ? 'dia' : 'dias'}`;
   function firstName(n) { return String(n || '').trim().split(/\s+/)[0] || ''; }
+  // aluno de personal presencial: marcação manual no cadastro ou, se não marcado, pelo serviço / tipo de plano
+  function isPersonal(r) { if (r?.personal === true || r?.personal === false) return r.personal; return /personal/i.test(r?.service || '') || PERSONAL_PLANS.some(p => norm(p.name) === norm(r?.plan || '')); }
   function message(x, sign = 'TEAMRM — Rosileni Martins') {
     const r = x.record, d = br(x.date), hi = `Olá, ${firstName(r.name)}! Tudo bem?`;
     if (x.kind === 'expiry') {
@@ -209,14 +211,14 @@ const AL = (() => {
 
   return { PERSONAL_PLANS, sortPT, SITUATIONS, STUDENT_STATUS, REV_STATUS, PLAN_NAMES, PLAN_MONTHS, DEADLINES, PAY_TYPES, PAY_METHODS, SERVICES, DEFAULT_CATALOG,
     today, days, br, addMonths, addDays, norm, parseMoney, money, moneyInput, blank, revStatus, validate, isTraining, isActive, reminders, agenda, remTitle, whenTxt,
-    message, waLink, suggestRevisions, renew, stats, toCSV, fromCSV, splitCSV, toISO, firstName };
+    message, waLink, suggestRevisions, renew, stats, toCSV, fromCSV, splitCSV, toISO, firstName, isPersonal };
 })();
 if (typeof module !== 'undefined') module.exports = { AL };
 
 /* ================= telas ================= */
 
 const ALUNOS_TABS = [['geral', 'Visão geral'], ['lista', 'Alunos'], ['revisoes', 'Revisões'], ['lembretes', 'Lembretes'], ['valores', 'Valores'], ['exportar', 'Exportar']];
-let alState = { tab: 'geral', q: '', filter: 'Ativo', ahead: 7, remTab: 'all', remQ: '', revTab: 'next' };
+let alState = { tab: 'geral', q: '', filter: 'Ativo', kind: 'all', ahead: 7, remTab: 'all', remQ: '', revTab: 'next' };
 
 // reajuste 2027 do personal presencial: atualiza também uma tabela já salva no aparelho (só os valores antigos)
 const AL_PERSONAL_2027 = { '701.25': '729.58', '1423.75': '1430.83', '1777.92': '1785.00' };
@@ -304,10 +306,11 @@ async function alGeral(body, list, t) {
 async function alLista(body, list, t) {
   const F = [['Ativo', 'Ativos'], ['Inativo', 'Inativos'], ['expiring', 'A vencer'], ['unpaid', 'Pagamento'], ['all', 'Todos']];
   body.innerHTML = `<div class="row"><input class="search" id="al-q" type="search" placeholder="Buscar aluno ou serviço" aria-label="Buscar aluno" value="${esc(alState.q)}"></div>
+    <div class="tabs" role="tablist" aria-label="Tipo de aluno" style="margin-top:4px">${[['all', 'Todos', list.length], ['personal', 'Alunos de personal', list.filter(AL.isPersonal).length], ['online', 'Serviços online', list.filter(r => !AL.isPersonal(r)).length]].map(([k, l, n]) => `<button role="tab" data-kind="${k}" aria-selected="${alState.kind === k}">${esc(l)} <span class="tag">${n}</span></button>`).join('')}</div>
     <div class="chips">${F.map(([k, l]) => `<button class="chip" data-f="${k}" aria-pressed="${alState.filter === k}">${esc(l)}</button>`).join('')}</div><div id="al-list"></div>`;
   const draw = () => {
     const q = AL.norm(alState.q);
-    const l = list.filter(r => AL.norm(`${r.name} ${r.service} ${r.phone}`).includes(q)).filter(r => {
+    const l = list.filter(r => AL.norm(`${r.name} ${r.service} ${r.phone}`).includes(q)).filter(r => alState.kind === 'all' || (alState.kind === 'personal') === AL.isPersonal(r)).filter(r => {
       const k = AL.days(r.end, t);
       return alState.filter === 'all' ? true : alState.filter === 'expiring' ? AL.isActive(r) && r.end && k <= 7 : alState.filter === 'unpaid' ? r.studentStatus === 'Ativo' && (r.situation === 'Pendente' || (AL.parseMoney(r.amount) != null && !r.paid)) : r.studentStatus === alState.filter;
     });
@@ -316,7 +319,7 @@ async function alLista(body, list, t) {
       : `<p class="muted" style="margin:0 0 8px;font-size:.88rem">${l.length} aluno${l.length > 1 ? 's' : ''}</p><div class="plist">${l.map(r => {
         const k = AL.days(r.end, t);
         return `<button class="prow alrow" data-open="${r.id}"><span class="av">${esc(initials(r.name))}</span>
-          <span style="min-width:0"><b>${esc(r.name)}</b>${r.studentStatus === 'Inativo' ? ' <span class="tag">Inativo</span>' : ''}<br><span class="muted" style="font-size:.86rem">${esc(r.service || 'Sem serviço')}${r.plan ? ' · ' + esc(r.plan) : ''}</span></span>
+          <span style="min-width:0"><b>${esc(r.name)}</b>${AL.isPersonal(r) ? ' <span class="tag" style="background:var(--accent);color:var(--accent-ink)">Personal</span>' : ''}${r.studentStatus === 'Inativo' ? ' <span class="tag">Inativo</span>' : ''}<br><span class="muted" style="font-size:.86rem">${esc(r.service || 'Sem serviço')}${r.plan ? ' · ' + esc(r.plan) : ''}</span></span>
           <span class="almeta"><span class="st ${sitTone(r.situation)}">${esc(r.situation || '—')}</span>
           ${r.end ? `<span class="st ${r.studentStatus === 'Ativo' ? dueTone(k) : 'na'}" title="Término do plano">${k < 0 && r.studentStatus === 'Ativo' ? 'Venceu ' : 'Até '}${esc(AL.br(r.end))}</span>` : ''}
           ${AL.parseMoney(r.amount) != null ? `<span class="num muted" style="font-size:.84rem">${esc(AL.money(r.amount))}${r.paid ? ' ✓' : ''}</span>` : ''}</span></button>`; }).join('')}</div>`;
@@ -325,6 +328,7 @@ async function alLista(body, list, t) {
   };
   $('#al-q').oninput = e => { alState.q = e.target.value; draw(); };
   $$('[data-f]', body).forEach(b => b.onclick = () => { alState.filter = b.dataset.f; $$('[data-f]', body).forEach(x => x.setAttribute('aria-pressed', x === b)); draw(); });
+  $$('[data-kind]', body).forEach(b => b.onclick = () => { alState.kind = b.dataset.kind; $$('[data-kind]', body).forEach(x => x.setAttribute('aria-selected', x === b)); draw(); });
   draw();
 }
 
@@ -518,7 +522,7 @@ SCREENS.aluno = async ({ id }) => {
   const row = (l, v) => `<div><span class="eyebrow">${esc(l)}</span><div>${v}</div></div>`;
   app.innerHTML = `${back('Alunos online')}
     <div class="row spread" style="align-items:flex-start"><div class="row" style="gap:14px"><span class="av" style="width:56px;height:56px;font-size:1.2rem">${esc(initials(r.name))}</span>
-      <div class="stack" style="gap:4px"><h1>${esc(r.name)}</h1><span class="row" style="gap:6px"><span class="st ${r.studentStatus === 'Ativo' ? 'ok' : 'na'}">Aluno ${esc(r.studentStatus.toLowerCase())}</span><span class="st ${sitTone(r.situation)}">Pacote ${esc((r.situation || '—').toLowerCase())}</span></span></div></div>
+      <div class="stack" style="gap:4px"><h1>${esc(r.name)}</h1><span class="row" style="gap:6px"><span class="st ${r.studentStatus === 'Ativo' ? 'ok' : 'na'}">Aluno ${esc(r.studentStatus.toLowerCase())}</span><span class="st ${sitTone(r.situation)}">Pacote ${esc((r.situation || '—').toLowerCase())}</span>${AL.isPersonal(r) ? '<span class="st warn">Aluno de personal</span>' : '<span class="st na">Serviço online</span>'}</span></div></div>
       <div class="row"><button class="btn" id="a-edit">Editar</button><button class="btn danger" id="a-del">Excluir</button></div></div>
     ${rem.length ? `<section class="panel stack"><h2>Lembretes</h2><div class="plist">${rem.map(remRow).join('')}</div></section>` : ''}
     <section class="panel stack"><div class="row spread"><h2>Plano</h2><button class="btn small primary" data-renew="${r.id}">Renovar plano</button></div>
@@ -529,6 +533,7 @@ SCREENS.aluno = async ({ id }) => {
       ${row('Situação', `<label class="switch"><input type="checkbox" id="a-paid"${r.paid ? ' checked' : ''}><span class="sw"></span><span>${r.paid ? 'Pago' : 'A receber'}</span></label>`)}</div></section>
     <section class="panel stack"><h2>Revisões do acompanhamento</h2>
       ${[1, 2, 3].map(n => r[`revision${n}`] ? `<div class="prow arow" style="border:1px solid var(--line);border-radius:8px"><span><b>Revisão ${n}</b> · ${esc(AL.br(r[`revision${n}`]))} <span class="st ${AL.revStatus(r, n) === 'Finalizado' ? 'ok' : AL.revStatus(r, n) === 'Prescrito' ? 'warn' : dueTone(AL.days(r[`revision${n}`], t))}">${esc(AL.revStatus(r, n) || 'Não informada')}</span>${r[`revision${n}Notes`] ? `<br><span class="muted" style="font-size:.88rem">${esc(r[`revision${n}Notes`])}</span>` : ''}</span><button class="btn small" data-rv="${n}">Situação e observação</button></div>` : '').join('') || '<p class="muted" style="margin:0">Sem datas de revisão. Toque em Editar para programar as trocas de treino.</p>'}</section>
+    ${typeof PC !== 'undefined' ? `<section class="panel stack"><div class="row spread"><h2>Contratos</h2><button class="btn small primary" id="a-newk">+ Novo contrato</button></div><div id="a-ks"></div></section>` : ''}
     ${r.notes ? `<section class="panel"><span class="eyebrow">Observações</span><p style="margin:6px 0 0;white-space:pre-wrap">${esc(r.notes)}</p></section>` : ''}
     <section class="panel stack"><h2>Avaliação postural</h2>${pt ? `<p class="muted" style="margin:0">Vinculado ao paciente <b>${esc(pt.name)}</b>.</p><div class="row"><button class="btn" id="a-pt">Abrir paciente</button><button class="btn primary" id="a-av">+ Nova avaliação</button></div>`
       : `<p class="muted" style="margin:0">Vincule este aluno a um paciente para ver as avaliações posturais junto do plano.</p><div class="row"><button class="btn" id="a-link">Vincular ou criar paciente</button></div>`}</section>
@@ -543,6 +548,19 @@ SCREENS.aluno = async ({ id }) => {
   const ap = $('#a-pt'); if (ap) ap.onclick = () => go('patient', { id: pt.id });
   const av = $('#a-av'); if (av) av.onclick = () => go('patient', { id: pt.id });
   const al = $('#a-link'); if (al) al.onclick = () => linkPatient(r, reload);
+  if (typeof PC !== 'undefined') {
+    const cls = (await Store.all('pcClients')).filter(c => c.studentId === r.id), ids = new Set(cls.map(c => c.id));
+    const ks = (await Store.all('pcContracts')).filter(k => ids.has(k.clientId)).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    $('#a-ks').innerHTML = ks.length ? `<div class="plist">${ks.map(k => { const st = PC.statusOf(k, t); return `<button class="prow arow" data-k="${k.id}" style="grid-template-columns:1fr auto"><span><b>${esc(k.title)}</b> <span class="muted" style="font-size:.86rem">· versão ${k.version}${k.kind === 'online' ? ' · serviço online' : ''}</span></span><span class="st ${st === 'assinado' ? 'ok' : st === 'aguardando' ? 'warn' : st === 'cancelado' || st === 'vencido' ? 'bad' : 'na'}">${esc(PC.STATUS[st] || st)}</span></button>`; }).join('')}</div>`
+      : `<p class="muted" style="margin:0">Nenhum contrato ainda. ${AL.isPersonal(r) ? 'O contrato de personal traz calendário de aulas, feriados e valor mensal.' : 'O contrato de serviço online traz vigência, plano e valores.'}</p>`;
+    $$('[data-k]', app).forEach(b => b.onclick = () => go('pcContrato', { id: b.dataset.k }));
+    $('#a-newk').onclick = async () => {
+      const kind = AL.isPersonal(r) ? 'personal' : 'online';
+      let c = cls.find(x => pcCat(x) === kind);
+      if (!c) { c = { id: PC.uid(), category: kind, name: r.name, cpf: '', phone: r.phone || '', email: '', address: '', notes: '', studentId: r.id, service: r.service || '', docs: [], createdAt: todayISO() }; await Store.put('pcClients', c); toast(`${r.name} cadastrado em “${PC_CATS[kind]}”`); }
+      pcNewContract(c.id, kind);
+    };
+  }
 };
 async function linkPatient(r, after) {
   const pts = (await Store.all('patients')).filter(p => !p.example).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
@@ -582,6 +600,7 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
         <div class="grid-form" id="f-newplan" style="grid-column:1/-1" hidden><label class="f">Nome do novo tipo de plano *<input id="f-plan-new" maxlength="60" placeholder="Ex.: Quadrimestral, Pacote 10 aulas…"></label>
           <label class="f">Duração (meses)<input id="f-plan-months" type="number" inputmode="numeric" min="0" max="60" step="1" placeholder="Ex.: 4 (0 = sem duração fixa)"></label></div>
         <label class="f">Status do aluno *<select id="f-studentStatus">${opts(AL.STUDENT_STATUS, r.studentStatus)}</select></label>
+        <label class="f">Tipo de aluno<select id="f-personal">${[['auto', 'Automático (pelo serviço e plano)'], ['sim', 'Aluno de personal presencial'], ['nao', 'Serviço online']].map(([k, l]) => `<option value="${k}"${(r.personal === true ? 'sim' : r.personal === false ? 'nao' : 'auto') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
         <label class="f">Telefone / WhatsApp<input id="f-phone" type="tel" value="${esc(r.phone)}" placeholder="(35) 99999-0000" maxlength="40"></label>
         <label class="f" style="grid-column:1/-1">Paciente vinculado (avaliações posturais)<select id="f-patientId"><option value="">Nenhum</option>${pts.filter(p => !p.example).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')).map(p => `<option value="${p.id}"${p.id === r.patientId ? ' selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
       </div></section>
@@ -648,6 +667,7 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
     if (newPlan && !nx.plan) { $('#f-err').textContent = 'Escreva o nome do novo tipo de plano.'; $('#f-err').hidden = false; $('#f-plan-new').focus(); return; }
     if (newServ && !nx.service) { $('#f-err').textContent = 'Escreva o nome do novo serviço.'; $('#f-err').hidden = false; $('#f-service-new').focus(); return; }
     nx.amount = AL.parseMoney(v('amount').value) ?? (v('amount').value.trim() ? v('amount').value : ''); nx.paid = v('paid').checked;
+    { const tp = v('personal').value; if (tp === 'sim') nx.personal = true; else if (tp === 'nao') nx.personal = false; else delete nx.personal; }
     const err = AL.validate(nx);
     if (err) { $('#f-err').textContent = err; $('#f-err').hidden = false; $('#f-err').scrollIntoView({ block: 'center' }); return; }
     if (nx.service && !servs.includes(nx.service)) await alSaveServices([...servs, nx.service]);

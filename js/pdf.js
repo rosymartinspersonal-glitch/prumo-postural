@@ -8,6 +8,8 @@ async function exportPDF(a, p) {
   if (!window.jspdf) await withTimeout(loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'), 20000);
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: 'mm', format: 'a4' }), S = await getSettings(), K = KINDS[kindOf(a)];
+  // assinatura da profissional: se ainda não foi cadastrada, oferece enviar ou desenhar agora (uma vez por sessão, se pular)
+  if (!S.signature && !window.__sigSkip) { const png = await sigAsk(); if (png) { S.signature = png; await Store.put('settings', S); } else window.__sigSkip = true; }
   const W = 210, Hh = 297, M = 14, INK = [20, 26, 51], MUT = [90, 97, 128];
   const SC = { ok: [23, 128, 74], warn: [168, 98, 0], bad: [192, 40, 58], na: MUT };
   let y = 0;
