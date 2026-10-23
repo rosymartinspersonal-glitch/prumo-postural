@@ -35,7 +35,7 @@ const REF_ART = (() => {
   const unipBack = standFront(guide('M30 82 H90'), 'M52 82 L50 122 L50 160 M68 82 L72 124 L80 108');   // joelho dobrado para trás
   const unipHip = standFront(guide('M30 82 H90'), 'M52 82 L50 122 L50 160 M68 82 L74 98 L72 130');   // quadril dobrado à frente (joelho alto)
   // flexão anterior em pé (viewBox 120×170)
-  const flexLat = S('0 0 120 170', floor(164, 120) + head(84, 112, 7) + body('M46 162 L48 120 L44 82 M44 82 C56 64 74 70 80 96 M70 76 L74 120 L76 158 M56 162 L44 162') + outfit('M68 74 L77 86', 'M44 80 L46.5 92', 12));
+  const flexLat = S('0 0 120 170', floor(164, 120) + body('M44 162 L46 120 L42 80 M42 80 C56 62 84 70 86 104 M82 92 L92 124 L96 150 M54 162 L42 162') + head(90, 116, 7) + outfit('M78 76 L85 90', 'M42 79 L44 91', 12));
   const encFlexAnt = S('0 0 120 170', floor(164, 120) + head(60, 104, 9) + body('M38 92 C46 82 74 82 82 92 M38 92 L40 158 M82 92 L80 158 M50 92 L46 130 L44 162 M70 92 L74 130 L76 162') + outfit('M44 89 H76', '', 10) + `<path d="M30 160 H90" stroke="${acc}" stroke-width="2" stroke-dasharray="5 4"/>`);
   const flexBack = S('0 0 120 170', floor(164, 120) + body('M42 70 C44 56 76 56 78 70 M42 70 L46 112 L40 162 M78 70 L74 112 L80 162 M60 60 V96') + outfit('', 'M45 66 H75 M45 72 L46 80 M75 72 L74 80', 11) + `<path d="M30 64 H90" stroke="${acc}" stroke-width="2" stroke-dasharray="5 4"/>` + head(60, 104, 7));
   return {
