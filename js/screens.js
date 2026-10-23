@@ -618,6 +618,7 @@ SCREENS.settings = async () => {
     </section>
     <h2 class="sethead">Suporte</h2>
     <div class="setlist">
+      <button class="setitem setbtn" id="share-app"><span class="sico">↗</span><span><b>Compartilhar o app</b><small>Enviar o link de instalação por WhatsApp, e-mail ou outro app</small></span><span aria-hidden="true">›</span></button>
       <button class="setitem setbtn" id="go-help"><span class="sico">?</span><span><b>Ajuda e protocolo de fotografia</b><small>Como fotografar, marcar pontos e usar cada teste</small></span><span aria-hidden="true">›</span></button>
       <details class="setitem"><summary><span class="sico">✉</span><span><b>Contate-nos</b><small>E-mail e WhatsApp do suporte TEAMRM</small></span></summary>
         ${cfg.support.email || cfg.support.whatsapp ? `<div class="stack">${cfg.support.email ? `<p style="margin:0">E-mail: <b class="selectable">${esc(cfg.support.email)}</b> <button class="btn small" data-copy="${esc(cfg.support.email)}">Copiar</button></p>` : ''}${cfg.support.whatsapp ? `<p style="margin:0">WhatsApp: <b class="selectable">${esc(cfg.support.whatsapp)}</b> <a class="btn small" href="https://wa.me/${esc(cfg.support.whatsapp.replace(/\D/g, ''))}" target="_blank" rel="noopener">Abrir conversa</a></p>` : ''}</div>` : '<p class="muted" style="margin:0">Contato de suporte ainda não configurado (arquivo js/config.js).</p>'}</details>
@@ -657,6 +658,12 @@ SCREENS.settings = async () => {
   drawLock();
   $('#go-plans').onclick = () => go('plans');
   $('#go-help').onclick = () => go('help');
+  $('#share-app').onclick = async () => {
+    const url = TEAMRM_CONFIG.appUrl || location.origin + location.pathname;
+    const text = 'TEAMRM - Posture & Correction: avaliação postural, ADM, bioimpedância e exercícios. Abra o link e instale na tela inicial: no iPhone, Safari → Compartilhar → Adicionar à Tela de Início; no Android, Chrome → ⋮ → Instalar app.';
+    try { if (navigator.share) { await navigator.share({ title: 'TEAMRM - Posture & Correction', text, url }); return; } } catch (e) { if (e.name === 'AbortError') return; }
+    copyText(text + ' ' + url);
+  };
   $('#go-privacy').onclick = () => go('legal', { doc: 'privacy' });
   $('#go-terms').onclick = () => go('legal', { doc: 'terms' });
   $$('[name="un"]').forEach(r => r.onchange = async () => { S.units = r.value; await Store.put('settings', S); applyUnits(S); toast('Unidades: ' + (S.units === 'imperial' ? 'imperial' : 'métrico')); go('settings'); });
