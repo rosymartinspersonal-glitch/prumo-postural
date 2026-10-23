@@ -2,7 +2,7 @@
 const assert = require('assert'), vm = require('vm'), fs = require('fs'), path = require('path');
 const ctx = { console, Math, Number, String, JSON }; vm.createContext(ctx);
 const src = f => fs.readFileSync(path.join(__dirname, '..', 'js', f), 'utf8');
-vm.runInContext(src('core.js') + '\n' + src('views.js') + '\n' + src('encurt.js') + ';this.VIEWS=VIEWS;this.KINDS=KINDS;this.REF_ART=REF_ART;this.tplPoints=tplPoints;this.explain=explain;', ctx);
+vm.runInContext(src('core.js') + '\n' + src('views.js') + '\n' + src('figuras.js') + '\n' + src('encurt.js') + ';this.VIEWS=VIEWS;this.KINDS=KINDS;this.REF_ART=REF_ART;this.tplPoints=tplPoints;this.explain=explain;', ctx);
 const { VIEWS, KINDS, REF_ART, tplPoints, explain } = ctx;
 const K = KINDS.encurt;
 assert.equal(K.views.length, 18);

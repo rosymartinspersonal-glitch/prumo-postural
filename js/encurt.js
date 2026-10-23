@@ -3,50 +3,8 @@
 'use strict';
 
 /* ---------- desenhos de referência (SVG, cores do tema) ---------- */
-const REF_ART = (() => {
-  const ink = 'var(--ink)', acc = 'var(--accent)', mu = 'var(--muted)';
-  const S = (vb, inner) => `<svg viewBox="${vb}" width="100%" height="100%" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
-  const body = d => `<path d="${d}" stroke="${ink}" stroke-width="4" stroke-opacity=".85"/>`;
-  const head = (x, y, r = 8) => `<circle cx="${x}" cy="${y}" r="${r}" stroke="${ink}" stroke-width="3.5" stroke-opacity=".85"/>`;
-  const guide = d => `<path d="${d}" stroke="${acc}" stroke-width="2" stroke-dasharray="5 4"/>`;
-  const arc = d => `<path d="${d}" stroke="${acc}" stroke-width="2.4"/>`;
-  const floor = (y, w = 160) => `<line x1="4" x2="${w - 4}" y1="${y}" y2="${y}" stroke="${mu}" stroke-width="2"/>`;
-  const cloth = (d, w = 12) => `<path d="${d}" stroke="${mu}" stroke-width="${w + 3}"/><path d="${d}" stroke="#0D0D0D" stroke-width="${w}"/>`;
-  const outfit = (top, shorts, w = 12) => (top ? cloth(top, w) : '') + (shorts ? cloth(shorts, w) : '');
-  const flip = (w, svg) => svg.replace(/(<svg[^>]*>)([\s\S]*)(<\/svg>)/, `$1<g transform="translate(${w} 0) scale(-1 1)">$2</g>$3`);
-  // em pé, de frente / de costas (viewBox 120×170)
-  const standFront = (extra = '', legs = 'M52 82 L50 122 L50 160 M68 82 L70 122 L70 160') => S('0 0 120 170',
-    head(60, 16) + body(`M60 24 V32 M42 34 H78 M42 34 L44 82 M78 34 L76 82 M47 82 H73 M60 32 V82 M42 34 L36 84 M78 34 L84 84 ${legs}`) + outfit('M46 41 H74', 'M49 85 H71 M52 88 L51 95 M68 88 L69 95') + extra);
-  const front = standFront(`<g fill="${ink}" stroke="none"><circle cx="57" cy="15" r="1.4"/><circle cx="63" cy="15" r="1.4"/></g>` + guide('M30 34 H90 M34 82 H86'));
-  const back = standFront(guide('M60 6 V164') + guide('M30 34 H90 M34 82 H86'));
-  // perfil olhando para a direita (viewBox 120×170)
-  const side = (arms = 'M58 36 L66 60 L68 84') => S('0 0 120 170',
-    `<path d="M58 166 V2" stroke="${acc}" stroke-width="1.6" stroke-dasharray="4 5" stroke-opacity=".7"/>` + head(62, 16) + body(`M60 24 L58 34 M58 34 C54 50 52 62 56 82 M56 82 L58 122 L58 160 L72 162 ${arms}`) + outfit('M58 37 L56 49', 'M55 80 L56.5 92', 13));
-  const latD = side(), latE = flip(120, latD);
-  const armsFwd = side('M58 36 L104 36');
-  // sentado, uma perna estendida e a outra dobrada, alcançando o pé (viewBox 160×100)
-  const sitUni = S('0 0 160 100', floor(90) + head(104, 42) + body('M44 86 L88 50 M44 86 L128 86 L132 70 M88 50 L126 68 M44 86 L70 66 L64 84 L52 86') + outfit('M72 64 L84 54', 'M44 84 L57 84') + arc('M64 86 A20 20 0 0 0 59 74'));
-  const sitBil = S('0 0 160 100', floor(90) + head(104, 42) + body('M44 86 L88 50 M44 86 L128 86 L132 70 M88 50 L128 70 M44 84 L128 82') + outfit('M72 64 L84 54', 'M44 84 L57 84') + arc('M64 86 A20 20 0 0 0 59 74'));
-  // deitado de barriga para baixo, joelhos dobrados (viewBox 160×100), cabeça à esquerda
-  const prone = S('0 0 160 100', floor(90) + head(16, 80, 7) + body('M24 84 L92 84 L128 86 L110 40 M24 84 L40 76 L24 70') + outfit('M30 84 L48 84', 'M82 84 L99 84.4', 11) + guide('M92 86 L150 86') + arc('M118 86 A12 12 0 0 0 124 74'));
-  // deitado de costas, uma perna estendida elevada (viewBox 160×100), cabeça à esquerda
-  const slr = S('0 0 160 100', floor(90) + head(14, 82, 7) + body('M22 84 L80 86 L150 86 M80 86 L104 14 M28 84 L52 88') + outfit('M28 84 L45 84.5', 'M70 86 L87 86', 11) + guide('M80 86 L148 86') + arc('M108 86 A28 28 0 0 0 89 60'));
-  // em pé sobre uma perna, de frente (viewBox 120×170). Apoio na perna direita do paciente = lado esquerdo da imagem
-  const unipBack = standFront(guide('M30 82 H90'), 'M52 82 L50 122 L50 160 M68 82 L72 124 L80 108');   // joelho dobrado para trás
-  const unipHip = standFront(guide('M30 82 H90'), 'M52 82 L50 122 L50 160 M68 82 L74 98 L72 130');   // quadril dobrado à frente (joelho alto)
-  // flexão anterior em pé (viewBox 120×170)
-  const flexLat = S('0 0 120 170', floor(164, 120) + body('M44 162 L46 120 L42 80 M42 80 C56 62 84 70 86 104 M82 92 L92 124 L96 150 M54 162 L42 162') + head(90, 116, 7) + outfit('M78 76 L85 90', 'M42 79 L44 91', 12));
-  const encFlexAnt = S('0 0 120 170', floor(164, 120) + head(60, 104, 9) + body('M38 92 C46 82 74 82 82 92 M38 92 L40 158 M82 92 L80 158 M50 92 L46 130 L44 162 M70 92 L74 130 L76 162') + outfit('M44 89 H76', '', 10) + `<path d="M30 160 H90" stroke="${acc}" stroke-width="2" stroke-dasharray="5 4"/>`);
-  const flexBack = S('0 0 120 170', floor(164, 120) + body('M42 70 C44 56 76 56 78 70 M42 70 L46 112 L40 162 M78 70 L74 112 L80 162 M60 60 V96') + outfit('', 'M45 66 H75 M45 72 L46 80 M75 72 L74 80', 11) + `<path d="M30 64 H90" stroke="${acc}" stroke-width="2" stroke-dasharray="5 4"/>` + head(60, 104, 7));
-  return {
-    front, back, latD, latE,
-    encSentUniD: sitUni, encSentUniE: flip(160, sitUni), encSentBilD: sitBil, encSentBilE: flip(160, sitBil),
-    encPronoD: flip(160, prone), encPronoE: prone, encSlrD: slr, encSlrE: flip(160, slr),
-    encUnipD: unipBack, encUnipE: flip(120, unipBack), encCegD: unipHip, encCegE: flip(120, unipHip),
-    encBracosD: armsFwd, encBracosE: flip(120, armsFwd),
-    encFlexAnt, adamsPost: flexBack, encFlexLatD: flexLat, encFlexLatE: flip(120, flexLat), adamsLat: flexLat,
-  };
-})();
+// desenho estático (posição final) de cada vista; a versão animada vem de FIG.svgAnim
+const REF_ART = Object.fromEntries(FIG.keys().map(k => [k, FIG.svgStatic(k)]));
 
 /* ---------- vistas dos testes ---------- */
 (() => {
@@ -257,11 +215,11 @@ KINDS.encurt = {
 }
 
 /* desenho de referência dentro do cartão da vista (sem foto) */
-function refArtFor(slot) { return REF_ART[slot] || ''; }
+function refArtFor(slot) { return FIG.has(slot) ? FIG.svgAnim(slot) : ''; }
 
 /* cartão no Início */
 if (typeof ART !== 'undefined' && typeof HOME_CARDS !== 'undefined') {
-  ART.encurt = REF_ART.encSlrD.replace('viewBox="0 0 160 100"', 'viewBox="0 -10 160 120"');
+  ART.encurt = FIG.svgAnim('encSlrD');
   const i = HOME_CARDS.findIndex(([k]) => k === 'adm');
   HOME_CARDS.splice(i < 0 ? HOME_CARDS.length : i, 0, ['encurt', 'Encurtamentos']);
 }
