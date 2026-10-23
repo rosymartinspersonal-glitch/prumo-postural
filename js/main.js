@@ -15,7 +15,7 @@
   // migração para a identidade TEAMRM (quem usava as cores antigas padrão)
   if ((S.brandV || 0) < 2) { if (!S.palette || S.palette === 'indigo') S.palette = 'teamrm'; if (S.pdfColor === '#1D2A6B') S.pdfColor = '#0D0D0D'; S.brandV = 2; S.theme ||= 'auto'; await Store.put('settings', S); }
   applyPalette(S); applyUnits(S);
-  try { await pcMigrateFields(); S.pcFieldsV2 = true; } catch (e) { }
+  try { await pcMigrateFields(); S.pcFieldsV3 = true; } catch (e) { }
   await AppLock.gate();   // senha do app, se estiver ligada
   const tb = document.getElementById('theme-btn');
   if (tb) tb.onclick = async () => { const s = await getSettings(); s.theme = { auto: 'light', light: 'dark', dark: 'auto' }[s.theme || 'auto']; await Store.put('settings', s); applyPalette(s); toast(THEME_LABEL[s.theme]); const sel = document.getElementById('s-theme'); if (sel) sel.value = s.theme; };

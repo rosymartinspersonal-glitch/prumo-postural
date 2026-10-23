@@ -103,7 +103,6 @@ const PC = (() => {
       { id: uid(), title: 'Contratada (profissional)', items: [F('Nome'), F('Registro profissional')] },
       { id: uid(), title: 'Serviço', items: [F('Serviço contratado', 'Personal trainer presencial'), F('Local'), F('Duração da aula'), F('Frequência das aulas'), F('Dias da semana e horários'), F('Início do contrato'), F('Término do contrato')] },
       { id: uid(), title: 'Valores e pagamento', items: [F('Valor por aula'), F('Quantidade de aulas'), F('Valor do plano'), F('Forma de pagamento'), F('Vencimento')] },
-      { id: uid(), title: 'Condições', items: [C('Faltas', ''), C('Reposições', ''), C('Cancelamentos', ''), C('Pausas', ''), C('Reajustes', '')] },
       { id: uid(), title: 'Observações e cláusulas adicionais', items: [C('Observações', '')] },
     ];
   }
@@ -114,13 +113,13 @@ const PC = (() => {
       { id: uid(), title: 'Contratada (profissional)', items: [F('Nome'), F('Registro profissional')] },
       { id: uid(), title: 'Serviço', items: [F('Serviço contratado'), F('Plano'), F('Forma de entrega'), F('Revisões / trocas incluídas'), F('Início do contrato'), F('Término do contrato')] },
       { id: uid(), title: 'Valores e pagamento', items: [F('Valor do plano'), F('Forma de pagamento'), F('Vencimento')] },
-      { id: uid(), title: 'Condições', items: [C('Revisões e trocas de treino', ''), C('Prazo de resposta', ''), C('Pausas', ''), C('Cancelamento', ''), C('Reajustes', '')] },
       { id: uid(), title: 'Observações e cláusulas adicionais', items: [C('Observações', '')] },
     ];
   }
   // campos retirados do cadastro do contrato (CPF, e-mail e endereço do aluno; CPF/CNPJ da profissional)
   const REMOVED_FIELDS = { 'Contratante (aluno)': ['CPF', 'E-mail', 'Endereço'], 'Contratada (profissional)': ['CPF/CNPJ'] };
-  function stripFields(sections) { let n = 0; for (const s of sections || []) { const rm = REMOVED_FIELDS[s.title]; if (!rm) continue; const before = s.items.length; s.items = s.items.filter(i => !(i.type === 'field' && rm.includes(i.label))); n += before - s.items.length; } return n; }
+  // seção "Condições" retirada (as regras de faltas, reposições, pausas e reajustes ficam nas diretrizes)
+  function stripFields(sections) { let n = 0; if (Array.isArray(sections)) for (let x = sections.length - 1; x >= 0; x--) if (sections[x].title === 'Condições') { sections.splice(x, 1); n++; } for (const s of sections || []) { const rm = REMOVED_FIELDS[s.title]; if (!rm) continue; const before = s.items.length; s.items = s.items.filter(i => !(i.type === 'field' && rm.includes(i.label))); n += before - s.items.length; } return n; }
   const T = (title, html) => ({ id: uid(), title, html });
   function guidelinesTemplateOnline() {
     return [T('Envio do treino / planilha', ''), T('Revisões e trocas de treino', ''), T('Comunicação e prazos de resposta', ''), T('Pagamentos e vencimentos', ''),
