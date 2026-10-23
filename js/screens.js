@@ -247,7 +247,7 @@ SCREENS.assessment = async ({ id }) => {
   const slotCard = s => {
     const vd = a.views[s], V = getView(s, vd), ready = viewReady(vd, s);
     const val = K.dynamic && ready ? measuresFor(s, vd)[0] : null;
-    return `<div class="slot"><div class="thumb">${vd?.img ? `<canvas data-cv="${s}" aria-label="${esc(V.label)}"></canvas>` : `<span class="plumb"></span><span class="eyebrow" style="position:relative;background:var(--sunken);padding:4px 6px">${esc(V.short)}</span>`}</div>
+    return `<div class="slot"><div class="thumb">${vd?.img ? `<canvas data-cv="${s}" aria-label="${esc(V.label)}"></canvas>` : (typeof refArtFor === 'function' && refArtFor(s) ? `<span class="refart" title="Posição de referência">${refArtFor(s)}</span><span class="eyebrow refart-tag">Posição · ${esc(V.short)}</span>` : `<span class="plumb"></span><span class="eyebrow" style="position:relative;background:var(--sunken);padding:4px 6px">${esc(V.short)}</span>`)}</div>
       <div class="meta"><h3>${esc(V.label)}</h3>${val ? `<span class="row" style="gap:6px"><b class="num">${fmtM(val)}</b><span class="st ${val.status}">${STATUS[val.status]}</span></span>` : !vd?.img ? '<span class="st na">Sem foto</span>' : ready ? `<span class="st ok">${Object.keys(vd.points).length} pontos</span>` : '<span class="st warn">Pontos pendentes</span>'}</div>
       <div class="acts"><label class="btn small${vd?.img ? '' : ' primary'}" style="cursor:pointer">📷 ${vd?.img ? 'Nova foto' : 'Tirar foto'}<input type="file" accept="image/*" capture="environment" data-file="${s}" hidden></label><label class="btn small" style="cursor:pointer">🖼️ Galeria<input type="file" accept="image/*" data-file="${s}" hidden></label>
         ${vd?.img ? `<button class="btn small" data-edit="${s}">Ajustar foto</button><button class="btn small" data-mark="${s}">Marcar pontos</button>` : ''}${vd?.img || K.dynamic ? `<button class="btn small ghost danger" data-rm="${s}" aria-label="Remover ${esc(V.label)}">Remover</button>` : ''}</div></div>`;
@@ -314,7 +314,7 @@ SCREENS.mark = async ({ id, slot, auto }) => {
 
   app.innerHTML = `${back('Fotos da avaliação')}
     <div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">Marcação de pontos</span><h1>${esc(V.label)}</h1></div></div>
-    <p class="muted" style="margin:0;max-width:75ch;font-size:.9rem">${esc(V.hint)}</p>
+    <div class="row" style="align-items:flex-start;flex-wrap:wrap">${typeof refArtFor === 'function' && refArtFor(slot) ? `<div class="markref" title="Posição de referência">${refArtFor(slot)}</div>` : ''}<p class="muted" style="margin:0;max-width:75ch;font-size:.9rem;flex:1;min-width:220px">${esc(V.hint)}</p></div>
     <div id="m-msg"></div>
     ${V.rom && vd.rom?.id && ROM_DEMO[vd.rom.id] ? `<details class="panel"><summary><b>Ver demonstração do movimento</b></summary><div class="exdetail" style="margin-top:10px"><div class="exanim">${romDemoSVG(vd.rom.id, 200)}</div><div data-ownvideo></div></div></details>` : ''}
     <div class="mark">

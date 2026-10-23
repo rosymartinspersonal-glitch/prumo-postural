@@ -335,6 +335,10 @@ details summary{cursor:pointer}
 .pe-check span{font-weight:700;width:16px;flex-shrink:0;text-align:center}
 .pe-check.ok span{color:var(--ok)} .pe-check.warn{background:var(--warn-bg)} .pe-check.warn span{color:var(--warn)} .pe-check.bad{background:var(--bad-bg)} .pe-check.bad span{color:var(--bad)}
 
+/* Desenho de referência da posição (vista sem foto) */
+.slot .thumb .refart{position:absolute;inset:8% 8% 16%;display:block}
+.slot .thumb .refart-tag{position:absolute;left:0;right:0;bottom:8px;text-align:center;font-size:.62rem}
+.markref{width:min(220px,60%);aspect-ratio:3/2;background:var(--sunken);border-radius:8px;padding:6px}
 /* Alunos (gestão) */
 .al-tabs{margin-top:-6px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,165px),1fr));gap:12px}
@@ -388,6 +392,7 @@ button.kpi{cursor:pointer}button.kpi:hover{border-color:var(--accent)}
 <script src="js/screens.js"></script>
 <script src="js/screens-ex.js"></script>
 <script src="js/home.js"></script>
+<script src="js/encurt.js"></script>
 <script src="js/billing.js"></script>
 <script src="js/legal.js"></script>
 <script src="js/video.js"></script>
