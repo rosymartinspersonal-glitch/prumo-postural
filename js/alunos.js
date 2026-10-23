@@ -221,7 +221,7 @@ SCREENS.alunos = async ({ tab } = {}) => {
   if (tab) alState.tab = tab;
   const [list, cat, S] = await Promise.all([alAll(), alCatalog(), getSettings()]);
   const t = AL.today();
-  app.innerHTML = `<div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">Gestão · ${esc(new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }))}</span><h1>Alunos</h1></div>
+  app.innerHTML = `<div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">Gestão · ${esc(new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }))}</span><h1>Alunos online</h1></div>
       <button class="btn primary" id="al-new">+ Novo aluno</button></div>
     <div class="tabs al-tabs" role="tablist">${ALUNOS_TABS.map(([k, l]) => `<button role="tab" data-tab="${k}" aria-selected="${alState.tab === k}">${esc(l)}</button>`).join('')}</div>
     <div id="al-body" class="stack" style="gap:16px"></div>`;
@@ -444,7 +444,7 @@ SCREENS.aluno = async ({ id }) => {
   const t = AL.today(), k = AL.days(r.end, t), pt = r.patientId ? await Store.get('patients', r.patientId) : null;
   const rem = AL.reminders([r], t, 400);
   const row = (l, v) => `<div><span class="eyebrow">${esc(l)}</span><div>${v}</div></div>`;
-  app.innerHTML = `${back('Alunos')}
+  app.innerHTML = `${back('Alunos online')}
     <div class="row spread" style="align-items:flex-start"><div class="row" style="gap:14px"><span class="av" style="width:56px;height:56px;font-size:1.2rem">${esc(initials(r.name))}</span>
       <div class="stack" style="gap:4px"><h1>${esc(r.name)}</h1><span class="row" style="gap:6px"><span class="st ${r.studentStatus === 'Ativo' ? 'ok' : 'na'}">Aluno ${esc(r.studentStatus.toLowerCase())}</span><span class="st ${sitTone(r.situation)}">Pacote ${esc((r.situation || '—').toLowerCase())}</span></span></div></div>
       <div class="row"><button class="btn" id="a-edit">Editar</button><button class="btn danger" id="a-del">Excluir</button></div></div>
