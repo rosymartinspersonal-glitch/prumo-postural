@@ -21,7 +21,7 @@ const PCSign = (() => {
   }
 
   /* ---------- lado da profissional ---------- */
-  async function send(k, cl) {
+  async function send(k, cl, skipConfirm) {
     if (!Billing.enabled) return toast('Conta do app não configurada');
     const u = await Billing.user();
     if (!u) { toast('Entre na sua conta (Ajustes → Conta) para enviar o link de assinatura', 4500); return; }
@@ -29,7 +29,7 @@ const PCSign = (() => {
     if (!o || o.status !== 'aguardando' || !o.signing?.hash) return toast('Congele a versão antes de enviar');
     let L = o.signing.link;
     if (!L || L.status !== 'pendente') {
-      if (!(await confirmBox('Criar link de assinatura?', 'Uma cópia desta versão do contrato (texto, calendário e diretrizes) fica guardada no servidor do app para o aluno ler e assinar pelo link. O link vale 30 dias e só funciona para quem o recebe.', 'Criar link'))) return;
+      if (!skipConfirm && !(await confirmBox('Criar link de assinatura?', 'Uma cópia desta versão do contrato (texto, calendário e diretrizes) fica guardada no servidor do app para o aluno ler e assinar pelo link. O link vale 30 dias e só funciona para quem o recebe.', 'Criar link'))) return;
       const P = await pcProfessional(), token = randToken();
       const html = await pcDocHTML(o, cl, 'completo');
       const { data, error } = await (await db()).from('sign_requests').insert({ token, contract_ref: o.id, version: o.version, title: o.title, signer_name: cl?.name || '', professional: [P.name, P.reg].filter(Boolean).join(' · '), doc_html: html, doc_hash: o.signing.hash }).select('id, expires_at').single();
