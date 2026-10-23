@@ -225,6 +225,10 @@ async function alPlans() {
 }
 async function alSavePlans(l) { await Store.put('settings', { id: 'plans', list: l }); }
 const monthsTxt = m => !m ? 'sem duração fixa' : m % 12 === 0 && m >= 12 ? `${m / 12} ano${m > 12 ? 's' : ''}` : `${m} ${m === 1 ? 'mês' : 'meses'}`;
+// listas simples salvas no aparelho (tipo e forma de pagamento), em ordem alfabética
+const AL_LISTS = { payTypes: () => AL.PAY_TYPES, payMethods: () => AL.PAY_METHODS };
+async function alList(id) { const c = await Store.get('settings', id); return AL.sortPT(c?.list || AL_LISTS[id]()); }
+async function alSaveList(id, l) { await Store.put('settings', { id, list: AL.sortPT(l) }); }
 async function alAll() { return (await Store.all('students')).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')); }
 async function alSave(r) { r.updatedAt = todayISO(); r.createdAt ||= todayISO(); await Store.put('students', r); return r; }
 const sitTone = s => ({ Ativo: 'ok', Pendente: 'warn', Pausado: 'na', Encerrado: 'bad' }[s] || 'na');
@@ -400,7 +404,8 @@ async function renewBox(r, after) {
 
 /* ---------- tabela de valores ---------- */
 async function alValores(body, list, t, cat) {
-  const groups = [...new Set(cat.map(c => c.group))], servs = await alServices(), plans = await alPlans();
+  const groups = [...new Set(cat.map(c => c.group))], servs = await alServices(), plans = await alPlans(), pay = { payTypes: await alList('payTypes'), payMethods: await alList('payMethods') };
+  const PAYSEC = [['payTypes', 'Tipos de pagamento', 'paymentType', 'Ex.: Mensal no boleto'], ['payMethods', 'Formas de pagamento', 'paymentMethod', 'Ex.: PicPay']];
   body.innerHTML = `<section class="panel stack"><h2>Serviços</h2><p class="muted" style="margin:0">Lista que aparece no campo “Serviço” do cadastro, em ordem alfabética. Cadastre outros serviços aqui ou direto no cadastro do aluno (“+ Cadastrar outro serviço…”).</p>
       <div class="row"><input class="search" id="sv-new" maxlength="120" placeholder="Nome do novo serviço" aria-label="Nome do novo serviço"><button type="button" class="btn primary" id="sv-add">Adicionar serviço</button></div>
       <div class="plist">${servs.map((x, i) => `<div class="prow arow" style="padding:8px 12px"><span>${esc(x)}${list.some(r => r.service === x) ? ` <span class="muted" style="font-size:.82rem">· ${list.filter(r => r.service === x).length} aluno(s)</span>` : ''}</span><button type="button" class="btn small ghost danger" data-svrm="${i}" aria-label="Remover ${esc(x)} da lista">Remover</button></div>`).join('')}</div>
@@ -409,6 +414,10 @@ async function alValores(body, list, t, cat) {
       <div class="row"><input class="search" id="pl-new" maxlength="60" placeholder="Nome do novo tipo de plano" aria-label="Nome do novo tipo de plano"><input class="search" id="pl-m" type="number" inputmode="numeric" min="0" max="60" placeholder="Meses" aria-label="Duração em meses" style="flex:0 1 110px;min-width:90px"><button type="button" class="btn primary" id="pl-add">Adicionar tipo</button></div>
       <div class="plist">${plans.map((x, i) => `<div class="prow arow" style="padding:8px 12px"><span>${esc(x.name)} <span class="muted" style="font-size:.82rem">· ${esc(monthsTxt(x.months))}${list.some(r => r.plan === x.name) ? ` · ${list.filter(r => r.plan === x.name).length} aluno(s)` : ''}</span></span><button type="button" class="btn small ghost danger" data-plrm="${i}" aria-label="Remover ${esc(x.name)} da lista">Remover</button></div>`).join('')}</div>
       <button type="button" class="btn ghost small" id="pl-reset" style="justify-self:start">Restaurar lista original</button></section>
+    ${PAYSEC.map(([id, title, field, ph]) => `<section class="panel stack"><h2>${title}</h2><p class="muted" style="margin:0">Lista do campo “${title.replace(/s /, ' ').replace(/s$/, '')}” no cadastro, em ordem alfabética.</p>
+      <div class="row"><input class="search" id="ln-${id}" maxlength="60" placeholder="${ph}" aria-label="Novo item em ${title}"><button type="button" class="btn primary" data-ladd="${id}">Adicionar</button></div>
+      <div class="plist">${pay[id].map((x, i) => `<div class="prow arow" style="padding:8px 12px"><span>${esc(x)}${list.some(r => r[field] === x) ? ` <span class="muted" style="font-size:.82rem">· ${list.filter(r => r[field] === x).length} aluno(s)</span>` : ''}</span><button type="button" class="btn small ghost danger" data-lrm="${id}" data-i="${i}" aria-label="Remover ${esc(x)}">Remover</button></div>`).join('')}</div>
+      <button type="button" class="btn ghost small" data-lreset="${id}" style="justify-self:start">Restaurar lista original</button></section>`).join('')}
     <p class="muted" style="margin:0">Valores usados ao escolher o serviço no cadastro (botão “Usar valor e pagamento”). Altere quando reajustar seus preços — os alunos já cadastrados não mudam.</p>
     <form id="vf" class="stack">${groups.map(g => `<section class="panel stack"><h2>${esc(g)}</h2><div class="tbl-wrap"><table><thead><tr><th>Serviço</th><th>Plano</th><th style="text-align:right">Valor (R$)</th><th></th></tr></thead><tbody>
       ${cat.map((c, i) => c.group !== g ? '' : `<tr><td>${esc(c.label)}<span class="ref">${esc(c.desc || '')}</span></td><td>${esc(c.plan)}${c.paymentType === 'Recorrente no cartão' ? '<span class="ref">Recorrente no cartão</span>' : ''}</td>
@@ -428,6 +437,12 @@ async function alValores(body, list, t, cat) {
   $('#pl-add').onclick = addPlan; $('#pl-new').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addPlan(); } };
   $$('[data-plrm]', body).forEach(b => b.onclick = async () => { const x = plans[+b.dataset.plrm]; if (plans.length < 2) return toast('Deixe ao menos um tipo de plano'); if (!(await confirmBox('Remover tipo de plano?', `“${x.name}” sai da lista do cadastro. Alunos que já usam esse plano não mudam.`, 'Remover'))) return; await alSavePlans(plans.filter(y => y !== x)); toast('Tipo de plano removido'); go('alunos'); });
   $('#pl-reset').onclick = async () => { if (await confirmBox('Restaurar lista original?', 'Os tipos de plano voltam a Mensal, Bimestral, Trimestral, Semestral e Anual. Alunos não mudam.', 'Restaurar')) { await Store.del('settings', 'plans'); go('alunos'); } };
+  for (const [id] of PAYSEC) {
+    const add = async () => { const n = $('#ln-' + id).value.trim(); if (!n) return toast('Escreva o nome'); if (pay[id].some(x => AL.norm(x) === AL.norm(n))) return toast('Já está na lista'); await alSaveList(id, [...pay[id], n]); toast('Adicionado'); go('alunos'); };
+    $(`[data-ladd="${id}"]`, body).onclick = add; $('#ln-' + id).onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); add(); } };
+    $(`[data-lreset="${id}"]`, body).onclick = async () => { if (await confirmBox('Restaurar lista original?', 'Os itens que você cadastrou saem da lista. Alunos não mudam.', 'Restaurar')) { await Store.del('settings', id); go('alunos'); } };
+  }
+  $$('[data-lrm]', body).forEach(b => b.onclick = async () => { const id = b.dataset.lrm, x = pay[id][+b.dataset.i]; if (!(await confirmBox('Remover da lista?', `“${x}” sai da lista do cadastro. Alunos que já usam não mudam.`, 'Remover'))) return; await alSaveList(id, pay[id].filter(y => y !== x)); toast('Removido'); go('alunos'); });
   $('#sv-add').onclick = addServ; $('#sv-new').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addServ(); } };
   $$('[data-svrm]', body).forEach(b => b.onclick = async () => { const x = servs[+b.dataset.svrm]; if (!(await confirmBox('Remover serviço da lista?', `“${x}” sai da lista do cadastro. Alunos que já usam esse serviço não mudam.`, 'Remover'))) return; await alSaveServices(servs.filter(y => y !== x)); toast('Serviço removido'); go('alunos'); });
   $('#sv-reset').onclick = async () => { if (await confirmBox('Restaurar lista original?', 'A lista de serviços volta à original (os serviços que você cadastrou saem da lista). Alunos não mudam.', 'Restaurar')) { await Store.del('settings', 'services'); go('alunos'); } };
@@ -522,7 +537,8 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
   const r = old ? { ...AL.blank(), ...old } : { ...AL.blank(), id: uid(), patientId: patientId || '' };
   if (!old && patientId) { const p = await Store.get('patients', patientId); if (p) { r.name = p.name; r.phone = p.contact || ''; } }
   for (const n of [1, 2, 3]) if (r[`revision${n}Done`]) { r[`revision${n}Status`] = 'Finalizado'; delete r[`revision${n}Done`]; }
-  const [cat, pts, servs, plans] = await Promise.all([alCatalog(), Store.all('patients'), alServices(), alPlans()]);
+  const [cat, pts, servs, plans, payTypes, payMethods] = await Promise.all([alCatalog(), Store.all('patients'), alServices(), alPlans(), alList('payTypes'), alList('payMethods')]);
+  const listOpts = (l, cur) => AL.sortPT([...l, cur]).map(x => `<option${x === cur ? ' selected' : ''}>${esc(x)}</option>`).join('');
   const planOpts = cur => [...plans.map(x => x.name), ...(cur && !plans.some(x => x.name === cur) ? [cur] : [])].map(x => `<option${x === cur ? ' selected' : ''}>${esc(x)}</option>`).join('');
   const servOpts = cur => AL.sortPT([...servs, cur]).map(x => `<option${x === cur ? ' selected' : ''}>${esc(x)}</option>`).join('');
   const groups = [...new Set(cat.map(c => c.group))];
@@ -555,15 +571,15 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
       <p class="muted" style="margin:0;font-size:.86rem">Use as revisões para programar a troca do treino ou o acompanhamento. Essas datas e o término do pacote aparecem em Lembretes.</p></section>
       <section class="panel stack"><h2><span class="secn">03</span> Pagamento</h2><div class="grid-form">
         <label class="f">Valor do aluno (R$)<input id="f-amount" inputmode="decimal" value="${esc(AL.moneyInput(r.amount))}" placeholder="0,00"></label>
-        <label class="f">Tipo de pagamento<input id="f-paymentType" list="dl-ptype" value="${esc(r.paymentType)}" placeholder="Ex.: À vista ou Parcelado"></label>
-        <label class="f">Forma de pagamento<input id="f-paymentMethod" list="dl-pmeth" value="${esc(r.paymentMethod)}" placeholder="Ex.: Pix ou Cartão de crédito"></label>
+        <label class="f">Tipo de pagamento<select id="f-paymentType"><option value="">Selecione</option>${listOpts(payTypes, r.paymentType)}<option value="__new">+ Cadastrar outro tipo…</option></select></label>
+        <label class="f">Forma de pagamento<select id="f-paymentMethod"><option value="">Selecione</option>${listOpts(payMethods, r.paymentMethod)}<option value="__new">+ Cadastrar outra forma…</option></select></label>
+        <label class="f" id="f-newpt" hidden>Novo tipo de pagamento *<input id="f-paymentType-new" maxlength="60" placeholder="Ex.: Mensal no boleto"></label>
+        <label class="f" id="f-newpm" hidden>Nova forma de pagamento *<input id="f-paymentMethod-new" maxlength="60" placeholder="Ex.: PicPay"></label>
         <label class="switch" style="align-self:end;min-height:40px"><input type="checkbox" id="f-paid"${r.paid ? ' checked' : ''}><span class="sw"></span><span>Pagamento recebido</span></label>
       </div></section>
       <section class="panel stack"><h2><span class="secn">04</span> Observações</h2><label class="f">Anotações (opcional)<textarea id="f-notes" rows="3" maxlength="3000" placeholder="Detalhes importantes sobre este acompanhamento…">${esc(r.notes)}</textarea></label></section>
       <p class="banner warn" id="f-err" hidden></p>
       <div class="row" style="justify-content:flex-end"><span class="muted" style="font-size:.85rem;margin-right:auto">Salvo somente ao confirmar · fica só neste aparelho</span><button type="button" class="btn" id="f-cancel">Cancelar</button><button class="btn primary">Salvar cadastro</button></div>
-      <datalist id="dl-ptype">${AL.PAY_TYPES.map(s => `<option value="${s}">`).join('')}</datalist>
-      <datalist id="dl-pmeth">${AL.PAY_METHODS.map(s => `<option value="${s}">`).join('')}</datalist>
     </form>`;
   bindBack(old ? 'aluno' : 'alunos', old ? { id } : {});
   $('#f-cancel').onclick = () => old ? go('aluno', { id }) : go('alunos');
@@ -575,7 +591,10 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
   v('plan').onchange = () => { const nw = v('plan').value === '__new'; $('#f-newplan').hidden = !nw; if (nw) $('#f-plan-new').focus(); };
   v('cat').onchange = () => { const c = cur(); if (c) { setService(c.service); setPlan(c.plan); } showCat(); };
   showCat();
-  $('#f-apply').onclick = () => { const c = cur(); if (!c) return; v('amount').value = AL.moneyInput(c.amount); v('paymentType').value = c.paymentType; if (c.paymentType === 'Recorrente no cartão') v('paymentMethod').value = 'Cartão de crédito'; toast('Valor e pagamento preenchidos'); };
+  const setSel = (k, name, box) => { const sel = v(k); if (name && ![...sel.options].some(o => o.value === name)) sel.add(new Option(name, name), sel.options.length - 1); sel.value = name; $(box).hidden = true; };
+  v('paymentType').onchange = () => { const nw = v('paymentType').value === '__new'; $('#f-newpt').hidden = !nw; if (nw) $('#f-paymentType-new').focus(); };
+  v('paymentMethod').onchange = () => { const nw = v('paymentMethod').value === '__new'; $('#f-newpm').hidden = !nw; if (nw) $('#f-paymentMethod-new').focus(); };
+  $('#f-apply').onclick = () => { const c = cur(); if (!c) return; v('amount').value = AL.moneyInput(c.amount); setSel('paymentType', c.paymentType, '#f-newpt'); if (c.paymentType === 'Recorrente no cartão') setSel('paymentMethod', 'Cartão de crédito', '#f-newpm'); toast('Valor e pagamento preenchidos'); };
   v('amount').onblur = () => { const p = AL.parseMoney(v('amount').value); if (p != null) v('amount').value = AL.moneyInput(p); };
   const months = () => v('plan').value === '__new' ? (+$('#f-plan-months').value || 0) : (AL.PLAN_MONTHS[v('plan').value] || cur()?.months || 0);
   $('#f-autoend').onclick = () => { if (!v('start').value) v('start').value = AL.today(); const m = months(); if (!m) return toast('Escolha um plano (Mensal, Trimestral…)'); v('end').value = AL.addDays(AL.addMonths(v('start').value, m), -1); toast('Término calculado'); };
@@ -589,11 +608,15 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
   for (const n of [1, 2, 3]) { const sync = () => { v(`revision${n}Status`).disabled = !v(`revision${n}`).value; }; v(`revision${n}`).oninput = sync; v(`revision${n}`).onchange = sync; sync(); }
   $('#af').onsubmit = async e => {
     e.preventDefault();
-    const keys = ['name', 'studentStatus', 'phone', 'patientId', 'start', 'end', 'situation', 'deadline', 'paymentType', 'paymentMethod', 'notes', ...[1, 2, 3].flatMap(n => [`revision${n}`, `revision${n}Status`, `revision${n}Notes`])];
+    const keys = ['name', 'studentStatus', 'phone', 'patientId', 'start', 'end', 'situation', 'deadline', 'notes', ...[1, 2, 3].flatMap(n => [`revision${n}`, `revision${n}Status`, `revision${n}Notes`])];
     const nx = { ...r }; for (const k of keys) nx[k] = String(v(k).value ?? '').trim();
     for (const n of [1, 2, 3]) if (!nx[`revision${n}`]) nx[`revision${n}Status`] = '';
     const newServ = v('service').value === '__new';
     nx.service = newServ ? $('#f-service-new').value.trim() : v('service').value;
+    for (const [k, box, msg] of [['paymentType', '#f-newpt', 'Escreva o novo tipo de pagamento.'], ['paymentMethod', '#f-newpm', 'Escreva a nova forma de pagamento.']]) {
+      const nw = v(k).value === '__new'; nx[k] = nw ? $(`#f-${k}-new`).value.trim() : v(k).value;
+      if (nw && !nx[k]) { $('#f-err').textContent = msg; $('#f-err').hidden = false; $(`#f-${k}-new`).focus(); return; }
+    }
     const newPlan = v('plan').value === '__new';
     nx.plan = newPlan ? $('#f-plan-new').value.trim() : v('plan').value;
     if (newPlan && !nx.plan) { $('#f-err').textContent = 'Escreva o nome do novo tipo de plano.'; $('#f-err').hidden = false; $('#f-plan-new').focus(); return; }
@@ -602,8 +625,10 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
     const err = AL.validate(nx);
     if (err) { $('#f-err').textContent = err; $('#f-err').hidden = false; $('#f-err').scrollIntoView({ block: 'center' }); return; }
     if (nx.service && !servs.includes(nx.service)) await alSaveServices([...servs, nx.service]);
+    if (nx.paymentType && !payTypes.includes(nx.paymentType)) await alSaveList('payTypes', [...payTypes, nx.paymentType]);
+    if (nx.paymentMethod && !payMethods.includes(nx.paymentMethod)) await alSaveList('payMethods', [...payMethods, nx.paymentMethod]);
     if (nx.plan && !plans.some(x => AL.norm(x.name) === AL.norm(nx.plan))) await alSavePlans([...plans, { name: nx.plan, months: newPlan ? Math.max(0, Math.round(+$('#f-plan-months').value || 0)) : 0 }]);
-    await alSave(nx); toast(newServ || newPlan ? 'Cadastro salvo e lista atualizada' : 'Cadastro salvo'); go('aluno', { id: nx.id });
+    await alSave(nx); toast(newServ || newPlan || v('paymentType').value === '__new' || v('paymentMethod').value === '__new' ? 'Cadastro salvo e lista atualizada' : 'Cadastro salvo'); go('aluno', { id: nx.id });
   };
   if (!old) v('name').focus();
 };
