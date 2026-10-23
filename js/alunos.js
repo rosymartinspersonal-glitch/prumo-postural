@@ -218,7 +218,7 @@ if (typeof module !== 'undefined') module.exports = { AL };
 /* ================= telas ================= */
 
 const ALUNOS_TABS = [['geral', 'Visão geral'], ['lista', 'Alunos'], ['revisoes', 'Revisões'], ['lembretes', 'Lembretes'], ['valores', 'Valores'], ['exportar', 'Exportar']];
-let alState = { tab: 'geral', q: '', filter: 'Ativo', kind: 'all', ahead: 7, remTab: 'all', remQ: '', revTab: 'next' };
+let alState = { tab: 'geral', q: '', filter: 'Ativo', kind: (() => { try { return localStorage.getItem('teamrm-al-kind') || 'all'; } catch (e) { return 'all'; } })(), ahead: 7, remTab: 'all', remQ: '', revTab: 'next' };
 
 // reajuste 2027 do personal presencial: atualiza também uma tabela já salva no aparelho (só os valores antigos)
 const AL_PERSONAL_2027 = { '701.25': '729.58', '1423.75': '1430.83', '1777.92': '1785.00' };
@@ -304,6 +304,9 @@ async function alGeral(body, list, t) {
 
 /* ---------- lista ---------- */
 async function alLista(body, list, t) {
+  // contrato de personal de cada aluno (dias, duração e valor mensal), para a aba de personal
+  const pcInfo = new Map();
+  if (typeof pcSpecs !== 'undefined') { const cls = await Store.all('pcClients'), ks = await Store.all('pcContracts'); for (const c of cls) if (c.studentId && pcCat(c) === 'personal') pcInfo.set(c.studentId, pcSpecs(c, ks.filter(k => k.clientId === c.id), null)); }
   const F = [['Ativo', 'Ativos'], ['Inativo', 'Inativos'], ['expiring', 'A vencer'], ['unpaid', 'Pagamento'], ['all', 'Todos']];
   body.innerHTML = `<div class="row"><input class="search" id="al-q" type="search" placeholder="Buscar aluno ou serviço" aria-label="Buscar aluno" value="${esc(alState.q)}"></div>
     <div class="tabs" role="tablist" aria-label="Tipo de aluno" style="margin-top:4px">${[['all', 'Todos', list.length], ['personal', 'Alunos de personal', list.filter(AL.isPersonal).length], ['online', 'Serviços online', list.filter(r => !AL.isPersonal(r)).length]].map(([k, l, n]) => `<button role="tab" data-kind="${k}" aria-selected="${alState.kind === k}">${esc(l)} <span class="tag">${n}</span></button>`).join('')}</div>
@@ -319,7 +322,7 @@ async function alLista(body, list, t) {
       : `<p class="muted" style="margin:0 0 8px;font-size:.88rem">${l.length} aluno${l.length > 1 ? 's' : ''}</p><div class="plist">${l.map(r => {
         const k = AL.days(r.end, t);
         return `<button class="prow alrow" data-open="${r.id}"><span class="av">${esc(initials(r.name))}</span>
-          <span style="min-width:0"><b>${esc(r.name)}</b>${AL.isPersonal(r) ? ' <span class="tag" style="background:var(--accent);color:var(--accent-ink)">Personal</span>' : ''}${r.studentStatus === 'Inativo' ? ' <span class="tag">Inativo</span>' : ''}<br><span class="muted" style="font-size:.86rem">${esc(r.service || 'Sem serviço')}${r.plan ? ' · ' + esc(r.plan) : ''}</span></span>
+          <span style="min-width:0"><b>${esc(r.name)}</b>${AL.isPersonal(r) ? ' <span class="tag" style="background:var(--accent);color:var(--accent-ink)">Personal</span>' : ''}${r.studentStatus === 'Inativo' ? ' <span class="tag">Inativo</span>' : ''}<br><span class="muted" style="font-size:.86rem">${esc(r.service || 'Sem serviço')}${r.plan ? ' · ' + esc(r.plan) : ''}</span>${AL.isPersonal(r) ? pcInfo.get(r.id) || '' : ''}</span>
           <span class="almeta"><span class="st ${sitTone(r.situation)}">${esc(r.situation || '—')}</span>
           ${r.end ? `<span class="st ${r.studentStatus === 'Ativo' ? dueTone(k) : 'na'}" title="Término do plano">${k < 0 && r.studentStatus === 'Ativo' ? 'Venceu ' : 'Até '}${esc(AL.br(r.end))}</span>` : ''}
           ${AL.parseMoney(r.amount) != null ? `<span class="num muted" style="font-size:.84rem">${esc(AL.money(r.amount))}${r.paid ? ' ✓' : ''}</span>` : ''}</span></button>`; }).join('')}</div>`;
@@ -328,7 +331,7 @@ async function alLista(body, list, t) {
   };
   $('#al-q').oninput = e => { alState.q = e.target.value; draw(); };
   $$('[data-f]', body).forEach(b => b.onclick = () => { alState.filter = b.dataset.f; $$('[data-f]', body).forEach(x => x.setAttribute('aria-pressed', x === b)); draw(); });
-  $$('[data-kind]', body).forEach(b => b.onclick = () => { alState.kind = b.dataset.kind; $$('[data-kind]', body).forEach(x => x.setAttribute('aria-selected', x === b)); draw(); });
+  $$('[data-kind]', body).forEach(b => b.onclick = () => { alState.kind = b.dataset.kind; try { localStorage.setItem('teamrm-al-kind', alState.kind); } catch (e) { } $$('[data-kind]', body).forEach(x => x.setAttribute('aria-selected', x === b)); draw(); });
   draw();
 }
 

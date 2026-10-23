@@ -42,18 +42,22 @@ SCREENS.contratos = async ({ tab } = {}) => {
   $('#pc-newk').onclick = () => pcNewContract(null, curCat || (PCX.list.cat === 'online' ? 'online' : 'personal'));
   const body = $('#pc-body');
   if (curCat) {
-    const students = curCat === 'online' && typeof AL !== 'undefined' ? await Store.all('students') : [], linked = new Set(allClients.map(c => c.studentId).filter(Boolean));
-    const free = students.filter(s => !linked.has(s.id));
+    const allSt = typeof AL !== 'undefined' ? await Store.all('students') : [], stById = new Map(allSt.map(s => [s.id, s])), linked = new Set(allClients.map(c => c.studentId).filter(Boolean));
+    const free = allSt.filter(s => !linked.has(s.id) && pcStudentCat(s) === curCat);
+    // alunos cadastrados na aba errada (ex.: aluno de personal em Serviços online)
+    const wrong = clients.filter(c => pcClientCat(c, stById) !== curCat), other = curCat === 'online' ? 'personal' : 'online';
     body.innerHTML = `<p class="muted" style="margin:0;font-size:.9rem">${curCat === 'online' ? 'Alunos de consultoria, planilhas de treino e dieta. O contrato tem vigência (início e término) em vez de calendário de aulas.' : 'Alunos do atendimento presencial. O contrato tem calendário de aulas, feriados e valor mensal.'}</p>
-      ${curCat === 'online' && free.length ? `<div class="panel row spread" style="padding:12px 14px"><span style="font-size:.92rem">${free.length} aluno${free.length > 1 ? 's' : ''} de “Alunos online” ainda sem cadastro aqui.</span><button class="btn small primary" id="pc-from-al">Trazer de Alunos online</button></div>` : ''}
+      ${wrong.length ? `<div class="panel row spread" style="padding:12px 14px;border-color:var(--warn)"><span style="font-size:.92rem">${wrong.length} aluno${wrong.length > 1 ? 's' : ''} desta aba ${wrong.length > 1 ? 'são' : 'é'} de ${other === 'personal' ? 'personal presencial' : 'serviço online'}: ${esc(wrong.map(c => c.name).join(', '))}.</span><button class="btn small primary" id="pc-move">Mover para “${esc(PC_CATS[other])}”</button></div>` : ''}
+      ${free.length ? `<div class="panel row spread" style="padding:12px 14px"><span style="font-size:.92rem">${free.length} aluno${free.length > 1 ? 's' : ''} ${curCat === 'personal' ? 'de personal' : 'de serviço online'} de “Alunos online” ainda sem cadastro aqui.</span><button class="btn small primary" id="pc-from-al">Trazer de Alunos online</button></div>` : ''}
       <input class="search" id="pc-q" type="search" placeholder="Buscar aluno pelo nome" aria-label="Buscar aluno" value="${esc(PCX.list.q)}"><div id="pc-l"></div>`;
-    const fa = $('#pc-from-al'); if (fa) fa.onclick = () => pcFromStudents(free);
+    const fa = $('#pc-from-al'); if (fa) fa.onclick = () => pcFromStudents(free, curCat);
+    const mv = $('#pc-move'); if (mv) mv.onclick = async () => { for (const c of wrong) await Store.put('pcClients', { ...c, category: other, updatedAt: todayISO() }); toast(`${wrong.length} aluno${wrong.length > 1 ? 's' : ''} movido${wrong.length > 1 ? 's' : ''}`); go('contratos', { tab: curCat }); };
     const draw = () => {
       const q = AL.norm(PCX.list.q), l = clients.filter(c => AL.norm(c.name).includes(q));
       $('#pc-l').innerHTML = !clients.length ? `<div class="panel empty"><h2>Nenhum aluno nesta aba</h2><p class="muted" style="margin:0">${curCat === 'online' ? 'Cadastre o aluno de serviço online ou traga os alunos da aba “Alunos online”.' : 'Cadastre o primeiro aluno de personal ou importe os calendários em “Importar / exportar”.'}</p><button class="btn primary" id="pc-e1">+ Novo aluno</button></div>`
         : !l.length ? '<div class="panel empty muted">Nenhum aluno encontrado.</div>'
         : `<div class="plist">${l.map(c => { const ks = contracts.filter(k => k.clientId === c.id), st = ks.map(k => PC.statusOf(k, t));
-          return `<button class="prow" data-c="${c.id}"><span class="av">${esc(initials(c.name))}</span><span style="min-width:0"><b>${esc(c.name)}</b><br><span class="muted" style="font-size:.86rem">${ks.length} contrato${ks.length === 1 ? '' : 's'}${c.service ? ' · ' + esc(c.service) : ''}${c.phone ? ' · ' + esc(c.phone) : ''}</span></span><span class="row" style="gap:4px;justify-content:flex-end">${[...new Set(st)].map(s => `<span class="st ${pcStTone(s)}">${esc(PC.STATUS[s])}</span>`).join('')}</span></button>`; }).join('')}</div>`;
+          return `<button class="prow" data-c="${c.id}"><span class="av">${esc(initials(c.name))}</span><span style="min-width:0"><b>${esc(c.name)}</b><br><span class="muted" style="font-size:.86rem">${ks.length} contrato${ks.length === 1 ? '' : 's'}${c.service ? ' · ' + esc(c.service) : ''}${c.phone ? ' · ' + esc(c.phone) : ''}</span>${pcSpecs(c, ks, stById.get(c.studentId))}</span><span class="row" style="gap:4px;justify-content:flex-end">${[...new Set(st)].map(s => `<span class="st ${pcStTone(s)}">${esc(PC.STATUS[s])}</span>`).join('')}</span></button>`; }).join('')}</div>`;
       $$('[data-c]').forEach(b => b.onclick = () => go('pcCliente', { id: b.dataset.c }));
       const e1 = $('#pc-e1'); if (e1) e1.onclick = () => go('pcCliente', { id: null, category: curCat });
     };
@@ -175,10 +179,24 @@ function pcSyncOnline(k) {
   set('Valor do plano', O.amount != null && O.amount !== '' ? PC.money(O.amount) + (O.months > 1 ? ` (${O.months} meses)` : '') : '');
   set('Forma de pagamento', [O.paymentType, O.paymentMethod].filter(Boolean).join(' · ')); set('Vencimento', O.due);
 }
-async function pcFromStudents(list) {
-  if (!(await confirmBox('Trazer alunos?', `${list.length} aluno${list.length > 1 ? 's' : ''} de “Alunos online” ser${list.length > 1 ? 'ão' : 'á'} cadastrado${list.length > 1 ? 's' : ''} em “${PC_CATS.online}”, com nome, telefone e serviço. Nada é apagado.`, 'Trazer'))) return;
-  for (const st of list) await Store.put('pcClients', { id: PC.uid(), category: 'online', name: st.name, cpf: '', phone: st.phone || '', email: '', address: '', notes: '', studentId: st.id, service: st.service || '', docs: [], createdAt: todayISO() });
-  toast(`${list.length} aluno${list.length > 1 ? 's' : ''} cadastrado${list.length > 1 ? 's' : ''}`); go('contratos', { tab: 'online' });
+// tipo de cada aluno: personal presencial ou serviço online (o mesmo critério de Alunos online)
+const pcStudentCat = st => (typeof AL !== 'undefined' && AL.isPersonal(st) ? 'personal' : 'online');
+function pcClientCat(c, stById) { const st = c.studentId && stById.get(c.studentId); if (st) return pcStudentCat(st); if (c.service) return /personal/i.test(c.service) ? 'personal' : 'online'; return pcCat(c); }
+// especificidades na lista: personal = dias, duração e valor mensal do contrato; online = plano, término e valor
+function pcSpecs(c, ks, st) {
+  const cur = [...ks].filter(k => k.status !== 'cancelado').sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')))[0], bits = [];
+  if (pcCat(c) === 'personal') {
+    if (cur?.schedule) { const R = PC.ruleAt(cur.schedule, cur.schedule.start), days = (R.days || []).slice().sort((a, b) => a.dow - b.dow); if (days.length) bits.push(days.map(d => PC.DOW[d.dow].slice(0, 3)).join(', '), [...new Set(days.map(d => d.dur + ' min'))].join(' / ')); if (cur.schedule.fixedMonthly) bits.push(PC.money(PC.yearSummary(cur.schedule).fixed) + '/mês'); }
+  } else {
+    const O = cur?.online || {}; const plan = O.plan || st?.plan, end = O.end || st?.end, amt = O.amount ?? st?.amount;
+    if (plan) bits.push(plan); if (end) bits.push('até ' + PC.br(end)); if (amt != null && amt !== '' && PC.num(amt) != null) bits.push(PC.money(PC.num(amt)));
+  }
+  return bits.length ? `<br><span style="font-size:.84rem">${esc(bits.join(' · '))}</span>` : '';
+}
+async function pcFromStudents(list, cat = 'online') {
+  if (!(await confirmBox('Trazer alunos?', `${list.length} aluno${list.length > 1 ? 's' : ''} de “Alunos online” ser${list.length > 1 ? 'ão' : 'á'} cadastrado${list.length > 1 ? 's' : ''} em “${PC_CATS[cat]}”, com nome, telefone e serviço. Nada é apagado.`, 'Trazer'))) return;
+  for (const st of list) await Store.put('pcClients', { id: PC.uid(), category: cat, name: st.name, cpf: '', phone: st.phone || '', email: '', address: '', notes: '', studentId: st.id, service: st.service || '', docs: [], createdAt: todayISO() });
+  toast(`${list.length} aluno${list.length > 1 ? 's' : ''} cadastrado${list.length > 1 ? 's' : ''}`); go('contratos', { tab: cat });
 }
 // planos de personal (tabela de valores de Alunos online)
 async function pcPlans() {
