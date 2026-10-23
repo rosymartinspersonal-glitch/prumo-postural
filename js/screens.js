@@ -187,7 +187,7 @@ SCREENS.patient = async ({ id }) => {
       return `<div class="prow arow"><span style="min-width:0"><b>${esc(KINDS[kindOf(a)].label)}</b> <span class="muted num" style="font-size:.86rem">· ${fmtDate(a.date)}</span><br><span class="muted" style="font-size:.86rem">${s.text}</span>
         ${s.done && !KINDS[kindOf(a)].video ? `<span class="row" style="gap:6px;margin-top:6px">${bad ? `<span class="st bad">${bad} alterado${bad > 1 ? 's' : ''}</span>` : ''}${warn ? `<span class="st warn">${warn} em atenção</span>` : ''}${!f.length ? '<span class="st ok">Sem achados</span>' : ''}</span>` : ''}</span>
         <span class="row" style="gap:6px;justify-content:flex-end">${KINDS[kindOf(a)].video ? `<button class="btn small primary" data-video="${a.id}">Abrir análise</button>` : `<button class="btn small" data-open="${a.id}">Fotos e pontos</button><button class="btn small primary" data-res="${a.id}" ${s.done ? '' : 'disabled'}>Resultados</button>`}
-        ${same.length > 1 && !KINDS[kindOf(a)].video ? `<button class="btn small ghost" data-cmp="${a.id}">Comparar</button>` : ''}</span></div>`;
+        ${same.length > 1 && !KINDS[kindOf(a)].video ? `<button class="btn small ghost" data-cmp="${a.id}">Comparar</button>` : ''}<button class="btn small ghost danger" data-adel="${a.id}" aria-label="Excluir avaliação de ${fmtDate(a.date)}">🗑 Excluir</button></span></div>`;
     }).join('')}</div>` : `<div class="panel empty"><h2>Nenhuma avaliação</h2><p class="muted" style="margin:0">Toque em “Nova avaliação” e escolha o tipo de teste.</p></div>`}</div>
     ${evoKeys.length ? `<section class="panel stack"><div class="row spread"><h2>Evolução</h2><label class="f" style="min-width:min(100%,320px)">Medida<select id="evo">${evoKeys.map(k => `<option value="${esc(k)}">${esc(series[k].label)}</option>`).join('')}</select></label></div><div id="evo-chart"></div></section>` : ''}`;
   bindBack('patients');
@@ -199,6 +199,7 @@ SCREENS.patient = async ({ id }) => {
   };
   $('#new-a').onclick = () => pickKind(id);
   $$('[data-open]').forEach(b => b.onclick = () => go('assessment', { id: b.dataset.open }));
+  $$('[data-adel]').forEach(b => b.onclick = () => deleteAssessment(as.find(x => x.id === b.dataset.adel), () => go('patient', { id })));
   $$('[data-res]').forEach(b => b.onclick = () => go('results', { id: b.dataset.res }));
   $$('[data-video]').forEach(b => b.onclick = () => go('video', { id: b.dataset.video }));
   $$('[data-cmp]').forEach(b => b.onclick = () => { const a = as.find(x => x.id === b.dataset.cmp), prev = as.filter(x => kindOf(x) === kindOf(a) && x.date < a.date)[0] || as.filter(x => kindOf(x) === kindOf(a) && x.id !== a.id)[0]; go('compare', { pid: id, a: prev.id, b: a.id }); });
@@ -206,6 +207,15 @@ SCREENS.patient = async ({ id }) => {
   if (evoKeys.length) { $('#evo').onchange = drawEvo; drawEvo(); }
 };
 
+/* Exclui uma avaliação e as mídias ligadas a ela (fotos originais e vídeo) */
+async function deleteAssessment(a, after) {
+  const K = KINDS[kindOf(a)];
+  if (!(await confirmBox('Excluir avaliação?', `${K.label} de ${fmtDate(a.date)}, com as fotos, os pontos e os resultados, será apagada deste aparelho. Essa ação não pode ser desfeita.`))) return false;
+  for (const s of Object.keys(a.views || {})) await Store.del('media', `src:${a.id}:${s}`);
+  await Store.del('media', 'video:' + a.id);
+  await Store.del('assessments', a.id);
+  toast('Avaliação excluída'); if (after) after(); return true;
+}
 function pickKind(pid) {
   const m = document.createElement('div'); m.className = 'modal';
   m.innerHTML = `<div class="panel" role="dialog" aria-modal="true" style="max-width:720px;max-height:90vh;overflow:auto">
@@ -239,7 +249,7 @@ SCREENS.assessment = async ({ id }) => {
   const protos = S.protocols || [];
   app.innerHTML = `${back(p.name)}
     <div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">${esc(p.name)}</span><h1>${esc(K.label)}</h1></div>
-      <label class="f" style="min-width:160px">Data da avaliação<input id="a-date" type="date" value="${a.date.slice(0, 10)}"></label></div>
+      <div class="row" style="align-items:flex-end"><label class="f" style="min-width:160px">Data da avaliação<input id="a-date" type="date" value="${a.date.slice(0, 10)}"></label><button class="btn ghost danger" id="a-del">🗑 Excluir avaliação</button></div></div>
     <p class="muted" style="margin:0;max-width:70ch">${K.dynamic ? 'Adicione um movimento, fotografe o paciente na amplitude máxima e marque os pontos do goniômetro.' : esc(K.desc) + ' Câmera parada, sem zoom, com o segmento inteiro no quadro.'}</p>
     ${K.dynamic ? `<div class="panel stack"><div class="row" style="align-items:flex-end">
         <label class="f" style="flex:1;min-width:220px">Movimento<select id="rom-sel">${ROM_PRESETS.map(r => `<option value="${r.id}">${esc(r.label)}${r.normal ? ' · ' + r.normal + '°' : ''} (${esc(r.plane)})</option>`).join('')}</select></label>
@@ -280,6 +290,7 @@ SCREENS.assessment = async ({ id }) => {
     await Store.put('assessments', a); go('assessment', { id });
   });
   $('#see').onclick = async () => { await save(); go('results', { id }); };
+  $('#a-del').onclick = () => deleteAssessment(a, () => go('patient', { id: a.patientId }));
 };
 
 
@@ -461,7 +472,7 @@ SCREENS.results = async ({ id }) => {
   if (a.includeExercises === undefined) a.includeExercises = true;
   app.innerHTML = `${back(p.name)}
     <div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">${esc(p.name)} · ${fmtDate(a.date)}</span><h1>${esc(K.label)}</h1></div>
-      <div class="row"><button class="btn" id="edit">Ajustar pontos</button>${prev ? '<button class="btn" id="cmp">Comparar com a anterior</button>' : ''}<button class="btn" id="jpgs">Salvar imagens (JPEG)</button><button class="btn primary" id="pdf">Exportar PDF</button></div></div>
+      <div class="row"><button class="btn" id="edit">Ajustar pontos</button>${prev ? '<button class="btn" id="cmp">Comparar com a anterior</button>' : ''}<button class="btn" id="jpgs">Salvar imagens (JPEG)</button><button class="btn primary" id="pdf">Exportar PDF</button><button class="btn ghost danger" id="r-del">🗑 Excluir</button></div></div>
     ${refs.map(r => `<div class="banner bad">${esc(r)}</div>`).join('')}
     <div class="summary">
       <div class="panel"><span class="eyebrow">Normais</span><b class="num" style="color:var(--ok)">${cnt('ok')}</b><span class="muted" style="font-size:.85rem">de ${ms.filter(m => m.status !== 'na').length} medidas</span></div>
@@ -488,6 +499,7 @@ SCREENS.results = async ({ id }) => {
   const base = `${slug(p.name)}-${a.date.slice(0, 10)}`;
   $$('[data-jpg]').forEach(b => b.onclick = () => saveJPEG(getView(b.dataset.jpg, a.views[b.dataset.jpg]), a.views[b.dataset.jpg], S, `${base}-${slug(getView(b.dataset.jpg, a.views[b.dataset.jpg]).label)}`));
   $('#jpgs').onclick = async () => { for (const s of slots) { await saveJPEG(getView(s, a.views[s]), a.views[s], S, `${base}-${slug(getView(s, a.views[s]).label)}`); await new Promise(r => setTimeout(r, 400)); } toast('Imagens salvas'); };
+  $('#r-del').onclick = () => deleteAssessment(a, () => go('patient', { id: a.patientId }));
   $('#pdf').onclick = async () => {
     a.conclusion = $('#concl').value; await Store.put('assessments', a);
     const b = $('#pdf'); b.disabled = true; b.textContent = 'Gerando PDF…';

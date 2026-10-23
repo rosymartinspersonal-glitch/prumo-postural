@@ -137,12 +137,30 @@ function peRender(img, e, maxOut, opts = {}) {
 
 /* ---------- editor ---------- */
 // blob: foto original; V: vista (para saber se é de corpo inteiro); init: edição anterior (opcional)
+/* Abre a foto do celular com segurança: fotos muito grandes (48–200 MP) são reduzidas para
+   no máximo 4096 px no lado maior antes de editar, porque o iPhone e o Android travam ou
+   recarregam a página com imagens desse tamanho. Fotos até ~16 MP ficam como estão. */
+const PE_SRC_MAX = 4096;
+async function peLoadSource(blob) {
+  const fit = (w, h) => { const k = Math.min(1, PE_SRC_MAX / Math.max(w, h)); return w * h > 16.7e6 ? k : 1; };
+  const toCanvas = (src, w, h) => { const k = fit(w, h); if (k === 1) return src; const c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k); const x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(src, 0, 0, c.width, c.height); if (src.close) src.close(); return c; };
+  const url = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise((res, rej) => { const i = new Image(); i.decoding = 'async'; i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    return toCanvas(img, img.naturalWidth, img.naturalHeight);
+  } catch (e1) {
+    if (window.createImageBitmap) { try { const bm = await createImageBitmap(blob); return toCanvas(bm, bm.width, bm.height); } catch (e2) { } }
+    throw e1;
+  } finally { setTimeout(() => URL.revokeObjectURL(url), 1000); }
+}
 function openPhotoEditor({ blob, V, init, title }) {
   return new Promise(async resolve => {
-    const url = URL.createObjectURL(blob);
-    let img; try { img = await loadImg(url); } catch (err) { toast('Não foi possível abrir essa imagem. Tente JPG ou PNG.'); URL.revokeObjectURL(url); return resolve(null); }
-    imgCache.delete(url);
-    const W0 = img.naturalWidth, H0 = img.naturalHeight, fullBody = V && V.frame !== 'image';
+    let img; try { img = await peLoadSource(blob); } catch (err) {
+      const heic = /hei[cf]/i.test(blob.type || '') || /\.hei[cf]$/i.test(blob.name || '');
+      toast(heic ? 'Este celular não abre fotos HEIC aqui. No iPhone: Ajustes → Câmera → Formatos → "Mais Compatível". Ou envie a foto como JPG.' : 'Não foi possível abrir essa imagem. Tente uma foto JPG ou PNG.', 7000);
+      return resolve(null);
+    }
+    const W0 = img.naturalWidth || img.width, H0 = img.naturalHeight || img.height, fullBody = V && V.frame !== 'image';
     const e = Object.assign(PE_DEFAULT(), JSON.parse(JSON.stringify(init || {})));
     const fillColor = peBorderColor(img);
     let pose = null, refMode = false, refPts = [], grid = true, raf = 0, prev = null;
@@ -170,7 +188,7 @@ function openPhotoEditor({ blob, V, init, title }) {
           <p class="muted" style="margin:0;font-size:.8rem">A foto só é girada, cortada ou enquadrada: nada é esticado nem deformado, e cada ajuste parte da foto original. Endireite pelo ambiente (parede, batente, fio de prumo), nunca pelo corpo do paciente.</p>
         </div>
       </div>
-      <div class="row" style="justify-content:space-between"><button class="btn ghost" id="pe-reset">Voltar à foto original</button><div class="row"><button class="btn" data-x="0">Cancelar</button><button class="btn primary" data-x="1">Usar foto</button></div></div>
+      <div class="row pe-foot" style="justify-content:space-between"><button class="btn ghost" id="pe-reset">Voltar à foto original</button><div class="row"><button class="btn" data-x="0">Cancelar</button><button class="btn primary" data-x="1">Usar foto ✓</button></div></div>
     </div>`;
     document.body.appendChild(m);
     const cv = $('#pe-cv', m), ctx = cv.getContext('2d');
@@ -240,7 +258,7 @@ function openPhotoEditor({ blob, V, init, title }) {
     if (V && V.detect === 'pose') detectPoseRaw(img).then(p => { pose = p; draw(); }).catch(() => { });
     setTimeout(() => { try { lastTilt = measureTilt().angle; } catch (err) { } draw(); }, 50);
 
-    const close = v => { cancelAnimationFrame(raf); m.remove(); URL.revokeObjectURL(url); resolve(v); };
+    const close = v => { cancelAnimationFrame(raf); m.remove(); resolve(v); };
     m.addEventListener('click', ev => {
       const b = ev.target.closest('[data-x]'); if (!b) return;
       if (b.dataset.x === '0') return close(null);
