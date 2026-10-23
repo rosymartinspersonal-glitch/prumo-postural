@@ -6,6 +6,7 @@
   }
   if (TEAMRM_CONFIG.showPlans) { const l = document.getElementById('nav-plans-label'); if (l) l.textContent = 'Planos'; }
   await Store.open();
+  try { await loadCustomEx(); } catch (e) { }
   const S = await getSettings();
   // migração para a identidade TEAMRM (quem usava as cores antigas padrão)
   if ((S.brandV || 0) < 2) { if (!S.palette || S.palette === 'indigo') S.palette = 'teamrm'; if (S.pdfColor === '#1D2A6B') S.pdfColor = '#0D0D0D'; S.brandV = 2; S.theme ||= 'auto'; await Store.put('settings', S); }

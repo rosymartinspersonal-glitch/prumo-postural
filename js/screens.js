@@ -679,7 +679,7 @@ SCREENS.settings = async () => {
   };
   const lr = $('#s-logo-rm'); if (lr) lr.onclick = async () => { S.logo = ''; await Store.put('settings', S); go('settings'); };
   $('#bk-out').onclick = async () => {
-    const data = { app: 'teamrm-posture', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments') };
+    const data = { app: 'teamrm-posture', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments'), customEx: (await Store.get('settings', 'customEx'))?.list || [] };
     downloadBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), `teamrm-backup-${new Date().toISOString().slice(0, 10)}.json`); toast('Backup exportado');
   };
   $('#bk-in').onchange = async e => {
@@ -689,6 +689,7 @@ SCREENS.settings = async () => {
       if (!(await confirmBox('Restaurar backup?', `${d.patients.length} pacientes e ${d.assessments.length} avaliações serão adicionados ou substituídos neste aparelho.`, 'Restaurar'))) return;
       for (const p of d.patients) await Store.put('patients', p);
       for (const a of d.assessments) await Store.put('assessments', a);
+      if (Array.isArray(d.customEx) && d.customEx.length) { const cur = (await Store.get('settings', 'customEx'))?.list || []; const ids = new Set(d.customEx.map(x => x.id)); await saveCustomEx([...cur.filter(x => !ids.has(x.id)), ...d.customEx]); }
       if (d.settings) await Store.put('settings', { ...d.settings, id: 'main', seeded: true });
       toast('Backup restaurado'); go('patients');
     } catch (err) { toast('Não foi possível restaurar: ' + err.message, 4000); }
