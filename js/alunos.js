@@ -12,7 +12,7 @@ const AL = (() => {
   const MONTH_PLAN = { 1: 'Mensal', 2: 'Bimestral', 3: 'Trimestral', 6: 'Semestral', 12: 'Anual' };
   const DEADLINES = ['30 dias', '45 dias', '60 dias', '90 dias'];
   const PAY_TYPES = ['Manual', 'À vista', 'Parcelado', 'Recorrente no cartão'];
-  const PAY_METHODS = ['Pix', 'Pix App MFIT', 'Cartão de crédito', 'Cartão de débito', 'Dinheiro', 'Boleto', 'Boleto App MFIT', 'Transferência'];
+  const PAY_METHODS = ['Pix', 'Cartão de crédito', 'Cartão de débito', 'Dinheiro', 'Transferência'];
   const SERVICES = sortPT(['Planilha de Treino', 'Planilha de Treino RM', 'Planilha de Treino + Dieta', 'Planilha de Treino Casal', 'Consultoria Online', 'Protocolo Alimentar – Dieta', 'Personal Presencial', 'Avaliação postural', 'Reabilitação / correção postural',
     'Plano Casal Protocolo RM – 10% Desconto', 'Plano Basic – Personal Trainer (2x/semana)', 'Plano Silver – Personal Trainer (3x/semana)', 'Plano Gold – Personal Trainer (4x/semana)', 'Plano Premium – Personal Trainer (5x/semana)']);
   function sortPT(l) { return [...new Set(l.map(x => String(x || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })); }
@@ -236,8 +236,13 @@ async function alSavePlans(l) { await Store.put('settings', { id: 'plans', list:
 const monthsTxt = m => !m ? 'sem duração fixa' : m % 12 === 0 && m >= 12 ? `${m / 12} ano${m > 12 ? 's' : ''}` : `${m} ${m === 1 ? 'mês' : 'meses'}`;
 // listas simples salvas no aparelho (tipo e forma de pagamento), em ordem alfabética
 const AL_LISTS = { payTypes: () => AL.PAY_TYPES, payMethods: () => AL.PAY_METHODS };
-async function alList(id) { const c = await Store.get('settings', id); return AL.sortPT(c?.list || AL_LISTS[id]()); }
-async function alSaveList(id, l) { await Store.put('settings', { id, list: AL.sortPT(l) }); }
+const AL_REMOVED = { payMethods: ['Boleto', 'Boleto App MFIT', 'Pix App MFIT'] };   // retirados da lista em 23/10/2026
+async function alList(id) {
+  const c = await Store.get('settings', id);
+  if (c?.list && AL_REMOVED[id] && !c.v2) { c.list = c.list.filter(x => !AL_REMOVED[id].includes(x)); c.v2 = true; await Store.put('settings', c); }
+  return AL.sortPT(c?.list || AL_LISTS[id]());
+}
+async function alSaveList(id, l) { await Store.put('settings', { id, list: AL.sortPT(l), v2: true }); }
 async function alAll() { return (await Store.all('students')).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')); }
 async function alSave(r) { r.updatedAt = todayISO(); r.createdAt ||= todayISO(); await Store.put('students', r); return r; }
 const sitTone = s => ({ Ativo: 'ok', Pendente: 'warn', Pausado: 'na', Encerrado: 'bad' }[s] || 'na');
