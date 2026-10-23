@@ -2,14 +2,17 @@
    Dados só no aparelho (lojas pcClients, pcContracts, pcTemplates; arquivos na loja media). Salva só ao tocar em "Salvar". */
 'use strict';
 
-const PCX = { draft: null, dirty: false, mode: 'fill', cal: { view: 'mes', month: 1 }, list: { q: '', st: 'all', year: '' }, tab: 'clientes' };
+const PCX = { draft: null, dirty: false, mode: 'fill', cal: { view: 'mes', month: 1 }, list: { q: '', st: 'all', year: '', cat: 'all' }, tab: 'personal' };
+const PC_CATS = { personal: 'Alunos – Personal trainer', online: 'Alunos – Serviços online' };
+const pcCat = c => (c?.category === 'online' ? 'online' : 'personal');
+const pcKind = k => (k?.kind === 'online' ? 'online' : 'personal');
 const pcAll = async s => (await Store.all(s));
 const pcClients = async () => (await pcAll('pcClients')).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 const pcToday = () => (typeof AL !== 'undefined' ? AL.today() : new Date().toISOString().slice(0, 10));
 const pcStTone = s => ({ rascunho: 'na', aguardando: 'warn', assinado: 'ok', vencido: 'bad', cancelado: 'bad' }[s] || 'na');
 const pcLocked = c => ['aguardando', 'assinado', 'cancelado'].includes(c.status);
 function pcSetDirty(v = true) { PCX.dirty = v; const b = $('#pc-save'); if (b) { b.disabled = !v; b.textContent = v ? 'Salvar' : 'Salvo'; } }
-async function pcTemplates(type) { const l = (await pcAll('pcTemplates')).filter(t => t.type === type); return l; }
+async function pcTemplates(type, kind = 'personal') { return (await pcAll('pcTemplates')).filter(t => t.type === type && (t.kind || 'personal') === kind); }
 async function pcProfessional() { const S = await getSettings(); return { name: S.professional || '', reg: S.registry ? crefFmt(S.registry) : '', clinic: S.clinic || '', logo: S.logo || '' }; }
 
 // aviso ao sair com alterações não salvas
@@ -27,52 +30,60 @@ async function pcProfessional() { const S = await getSettings(); return { name: 
 
 /* ================= lista ================= */
 SCREENS.contratos = async ({ tab } = {}) => {
-  if (tab) PCX.tab = tab;
-  const [clients, contracts] = await Promise.all([pcClients(), pcAll('pcContracts')]), t = pcToday();
-  const T = [['clientes', 'Clientes'], ['contratos', 'Contratos'], ['modelos', 'Modelos'], ['dados', 'Importar / exportar']];
-  app.innerHTML = `<div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">Atendimento presencial</span><h1>Contratos Personal</h1></div>
-      <div class="row"><button class="btn" id="pc-newc">+ Novo cliente</button><button class="btn primary" id="pc-newk">+ Novo contrato</button></div></div>
+  if (tab) PCX.tab = tab; if (PCX.tab === 'clientes') PCX.tab = 'personal';
+  const [allClients, contracts] = await Promise.all([pcClients(), pcAll('pcContracts')]), t = pcToday();
+  const T = [['personal', PC_CATS.personal], ['online', PC_CATS.online], ['contratos', 'Contratos'], ['modelos', 'Modelos'], ['dados', 'Importar / exportar']];
+  const curCat = PC_CATS[PCX.tab] ? PCX.tab : null, clients = curCat ? allClients.filter(c => pcCat(c) === curCat) : allClients;
+  app.innerHTML = `<div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">Personal trainer e serviços online</span><h1>Contratos Personal</h1></div>
+      <div class="row"><button class="btn" id="pc-newc">+ Novo aluno</button><button class="btn primary" id="pc-newk">+ Novo contrato</button></div></div>
     <div class="tabs" role="tablist">${T.map(([k, l]) => `<button role="tab" data-t="${k}" aria-selected="${PCX.tab === k}">${l}</button>`).join('')}</div><div id="pc-body" class="stack"></div>`;
   $$('[data-t]').forEach(b => b.onclick = () => go('contratos', { tab: b.dataset.t }));
-  $('#pc-newc').onclick = () => go('pcCliente', { id: null });
-  $('#pc-newk').onclick = () => pcNewContract(null);
+  $('#pc-newc').onclick = () => go('pcCliente', { id: null, category: curCat || 'personal' });
+  $('#pc-newk').onclick = () => pcNewContract(null, curCat || (PCX.list.cat === 'online' ? 'online' : 'personal'));
   const body = $('#pc-body');
-  if (PCX.tab === 'clientes') {
-    body.innerHTML = `<input class="search" id="pc-q" type="search" placeholder="Buscar cliente pelo nome" aria-label="Buscar cliente" value="${esc(PCX.list.q)}"><div id="pc-l"></div>`;
+  if (curCat) {
+    const students = curCat === 'online' && typeof AL !== 'undefined' ? await Store.all('students') : [], linked = new Set(allClients.map(c => c.studentId).filter(Boolean));
+    const free = students.filter(s => !linked.has(s.id));
+    body.innerHTML = `<p class="muted" style="margin:0;font-size:.9rem">${curCat === 'online' ? 'Alunos de consultoria, planilhas de treino e dieta. O contrato tem vigência (início e término) em vez de calendário de aulas.' : 'Alunos do atendimento presencial. O contrato tem calendário de aulas, feriados e valor mensal.'}</p>
+      ${curCat === 'online' && free.length ? `<div class="panel row spread" style="padding:12px 14px"><span style="font-size:.92rem">${free.length} aluno${free.length > 1 ? 's' : ''} de “Alunos online” ainda sem cadastro aqui.</span><button class="btn small primary" id="pc-from-al">Trazer de Alunos online</button></div>` : ''}
+      <input class="search" id="pc-q" type="search" placeholder="Buscar aluno pelo nome" aria-label="Buscar aluno" value="${esc(PCX.list.q)}"><div id="pc-l"></div>`;
+    const fa = $('#pc-from-al'); if (fa) fa.onclick = () => pcFromStudents(free);
     const draw = () => {
       const q = AL.norm(PCX.list.q), l = clients.filter(c => AL.norm(c.name).includes(q));
-      $('#pc-l').innerHTML = !clients.length ? `<div class="panel empty"><h2>Nenhum cliente ainda</h2><p class="muted" style="margin:0">Cadastre o primeiro cliente ou importe os calendários em “Importar / exportar”.</p><button class="btn primary" id="pc-e1">+ Novo cliente</button></div>`
-        : !l.length ? '<div class="panel empty muted">Nenhum cliente encontrado.</div>'
+      $('#pc-l').innerHTML = !clients.length ? `<div class="panel empty"><h2>Nenhum aluno nesta aba</h2><p class="muted" style="margin:0">${curCat === 'online' ? 'Cadastre o aluno de serviço online ou traga os alunos da aba “Alunos online”.' : 'Cadastre o primeiro aluno de personal ou importe os calendários em “Importar / exportar”.'}</p><button class="btn primary" id="pc-e1">+ Novo aluno</button></div>`
+        : !l.length ? '<div class="panel empty muted">Nenhum aluno encontrado.</div>'
         : `<div class="plist">${l.map(c => { const ks = contracts.filter(k => k.clientId === c.id), st = ks.map(k => PC.statusOf(k, t));
-          return `<button class="prow" data-c="${c.id}"><span class="av">${esc(initials(c.name))}</span><span style="min-width:0"><b>${esc(c.name)}</b><br><span class="muted" style="font-size:.86rem">${ks.length} contrato${ks.length === 1 ? '' : 's'}${c.phone ? ' · ' + esc(c.phone) : ''}</span></span><span class="row" style="gap:4px;justify-content:flex-end">${[...new Set(st)].map(s => `<span class="st ${pcStTone(s)}">${esc(PC.STATUS[s])}</span>`).join('')}</span></button>`; }).join('')}</div>`;
+          return `<button class="prow" data-c="${c.id}"><span class="av">${esc(initials(c.name))}</span><span style="min-width:0"><b>${esc(c.name)}</b><br><span class="muted" style="font-size:.86rem">${ks.length} contrato${ks.length === 1 ? '' : 's'}${c.service ? ' · ' + esc(c.service) : ''}${c.phone ? ' · ' + esc(c.phone) : ''}</span></span><span class="row" style="gap:4px;justify-content:flex-end">${[...new Set(st)].map(s => `<span class="st ${pcStTone(s)}">${esc(PC.STATUS[s])}</span>`).join('')}</span></button>`; }).join('')}</div>`;
       $$('[data-c]').forEach(b => b.onclick = () => go('pcCliente', { id: b.dataset.c }));
-      const e1 = $('#pc-e1'); if (e1) e1.onclick = () => go('pcCliente', { id: null });
+      const e1 = $('#pc-e1'); if (e1) e1.onclick = () => go('pcCliente', { id: null, category: curCat });
     };
     $('#pc-q').oninput = e => { PCX.list.q = e.target.value; draw(); }; draw();
   } else if (PCX.tab === 'contratos') {
-    const years = [...new Set(contracts.map(k => k.schedule?.year).filter(Boolean))].sort();
+    const years = [...new Set(contracts.map(k => PC.yearOf(k)).filter(Boolean))].sort();
     body.innerHTML = `<div class="row"><input class="search" id="pc-q" type="search" placeholder="Buscar por aluno ou título" value="${esc(PCX.list.q)}" aria-label="Buscar contrato">
         <label class="f" style="min-width:130px">Período<select id="pc-y"><option value="">Todos os anos</option>${years.map(y => `<option${String(y) === PCX.list.year ? ' selected' : ''}>${y}</option>`).join('')}</select></label></div>
+      <div class="chips" aria-label="Tipo">${[['all', 'Todos os alunos'], ['personal', 'Personal trainer'], ['online', 'Serviços online']].map(([k, l]) => `<button class="chip" data-cat="${k}" aria-pressed="${PCX.list.cat === k}">${l}</button>`).join('')}</div>
       <div class="chips">${[['all', 'Todos'], ...Object.entries(PC.STATUS)].map(([k, l]) => `<button class="chip" data-s="${k}" aria-pressed="${PCX.list.st === k}">${esc(l)}</button>`).join('')}</div><div id="pc-l"></div>`;
     const draw = () => {
       const q = AL.norm(PCX.list.q), name = id => clients.find(c => c.id === id)?.name || '—';
-      const l = contracts.filter(k => AL.norm(`${name(k.clientId)} ${k.title}`).includes(q) && (PCX.list.st === 'all' || PC.statusOf(k, t) === PCX.list.st) && (!PCX.list.year || String(k.schedule?.year) === PCX.list.year))
+      const l = contracts.filter(k => AL.norm(`${name(k.clientId)} ${k.title}`).includes(q) && (PCX.list.cat === 'all' || pcKind(k) === PCX.list.cat) && (PCX.list.st === 'all' || PC.statusOf(k, t) === PCX.list.st) && (!PCX.list.year || String(PC.yearOf(k)) === PCX.list.year))
         .sort((a, b) => name(a.clientId).localeCompare(name(b.clientId), 'pt-BR') || b.version - a.version);
-      $('#pc-l').innerHTML = l.length ? `<div class="plist">${l.map(k => { const s = PC.statusOf(k, t); return `<button class="prow" data-k="${k.id}" style="grid-template-columns:1fr auto"><span style="min-width:0"><b>${esc(name(k.clientId))}</b> <span class="muted" style="font-size:.86rem">· ${esc(k.title)} · v${k.version}</span><br><span class="muted" style="font-size:.84rem">${esc(PC.br(k.schedule?.start))} a ${esc(PC.br(k.schedule?.end))}</span></span><span class="st ${pcStTone(s)}">${esc(PC.STATUS[s])}</span></button>`; }).join('')}</div>` : '<div class="panel empty muted">Nenhum contrato nesta seleção.</div>';
+      $('#pc-l').innerHTML = l.length ? `<div class="plist">${l.map(k => { const s = PC.statusOf(k, t); return `<button class="prow" data-k="${k.id}" style="grid-template-columns:1fr auto"><span style="min-width:0"><b>${esc(name(k.clientId))}</b> <span class="muted" style="font-size:.86rem">· ${esc(k.title)} · v${k.version}</span><br><span class="muted" style="font-size:.84rem">${pcKind(k) === 'online' ? 'Online' : 'Personal'} · ${esc(PC.br(PC.periodOf(k).start))} a ${esc(PC.br(PC.periodOf(k).end) || 'sem término')}</span></span><span class="st ${pcStTone(s)}">${esc(PC.STATUS[s])}</span></button>`; }).join('')}</div>` : '<div class="panel empty muted">Nenhum contrato nesta seleção.</div>';
       $$('[data-k]').forEach(b => b.onclick = () => go('pcContrato', { id: b.dataset.k }));
     };
     $('#pc-q').oninput = e => { PCX.list.q = e.target.value; draw(); };
     $('#pc-y').onchange = e => { PCX.list.year = e.target.value; draw(); };
+    $$('[data-cat]').forEach(b => b.onclick = () => { PCX.list.cat = b.dataset.cat; $$('[data-cat]').forEach(x => x.setAttribute('aria-pressed', x === b)); draw(); });
     $$('[data-s]').forEach(b => b.onclick = () => { PCX.list.st = b.dataset.s; $$('[data-s]').forEach(x => x.setAttribute('aria-pressed', x === b)); draw(); });
     draw();
   } else if (PCX.tab === 'modelos') {
     const tpls = await pcAll('pcTemplates');
     body.innerHTML = `<p class="muted" style="margin:0">Modelos usados ao criar um contrato. Alterar um modelo não muda contratos já criados.</p>
-      ${['contrato', 'diretrizes'].map(type => `<section class="panel stack"><div class="row spread"><h2>${type === 'contrato' ? 'Modelos de contrato' : 'Modelos de diretrizes'}</h2><button class="btn small" data-nt="${type}">+ Novo modelo</button></div>
+      ${[['contrato', 'personal'], ['diretrizes', 'personal'], ['contrato', 'online'], ['diretrizes', 'online']].map(([type, kind]) => `<section class="panel stack"><div class="row spread"><h2>${type === 'contrato' ? 'Modelos de contrato' : 'Modelos de diretrizes'} · ${kind === 'online' ? 'serviços online' : 'personal trainer'}</h2><button class="btn small" data-nt="${type}" data-nk="${kind}">+ Novo modelo</button></div>
         <div class="plist"><div class="prow arow" style="cursor:default"><span><b>Modelo padrão do app</b><br><span class="muted" style="font-size:.85rem">Campos e tópicos em branco para preencher</span></span></div>
-        ${tpls.filter(x => x.type === type).map(x => `<div class="prow arow"><span><b>${esc(x.name)}</b><br><span class="muted" style="font-size:.85rem">Atualizado em ${esc(fmtDate(x.updatedAt || x.createdAt))}</span></span><span class="row" style="gap:6px;justify-content:flex-end"><button class="btn small" data-et="${x.id}">Editar</button><button class="btn small" data-dt="${x.id}">Duplicar</button><button class="btn small ghost danger" data-xt="${x.id}">Excluir</button></span></div>`).join('')}</div></section>`).join('')}
+        ${tpls.filter(x => x.type === type && (x.kind || 'personal') === kind).map(x => `<div class="prow arow"><span><b>${esc(x.name)}</b><br><span class="muted" style="font-size:.85rem">Atualizado em ${esc(fmtDate(x.updatedAt || x.createdAt))}</span></span><span class="row" style="gap:6px;justify-content:flex-end"><button class="btn small" data-et="${x.id}">Editar</button><button class="btn small" data-dt="${x.id}">Duplicar</button><button class="btn small ghost danger" data-xt="${x.id}">Excluir</button></span></div>`).join('')}</div></section>`).join('')}
       <section class="panel stack"><h2>Assinatura eletrônica</h2><p style="margin:0"><span class="st warn">Integração pendente</span></p><p class="muted" style="margin:0;font-size:.9rem">O envio de link individual com verificação de identidade depende de um provedor de assinatura eletrônica (por exemplo ZapSign, Clicksign, D4Sign ou o Assinador gov.br), que ainda não está configurado. Enquanto isso, o app congela a versão do documento com um código de verificação (SHA-256), gera o PDF para assinar e registra a assinatura feita no provedor anexando o PDF assinado.</p></section>`;
-    $$('[data-nt]').forEach(b => b.onclick = async () => { const t2 = { id: PC.uid(), type: b.dataset.nt, name: b.dataset.nt === 'contrato' ? 'Meu modelo de contrato' : 'Minhas diretrizes', data: b.dataset.nt === 'contrato' ? PC.contractTemplate() : PC.guidelinesTemplate(), createdAt: todayISO() }; await Store.put('pcTemplates', t2); go('pcModelo', { id: t2.id }); });
+    $$('[data-nt]').forEach(b => b.onclick = async () => { const on = b.dataset.nk === 'online', ct = b.dataset.nt === 'contrato'; const t2 = { id: PC.uid(), type: b.dataset.nt, kind: on ? 'online' : 'personal', name: (ct ? 'Meu modelo de contrato' : 'Minhas diretrizes') + (on ? ' (online)' : ''), data: ct ? (on ? PC.contractTemplateOnline() : PC.contractTemplate()) : (on ? PC.guidelinesTemplateOnline() : PC.guidelinesTemplate()), createdAt: todayISO() }; await Store.put('pcTemplates', t2); go('pcModelo', { id: t2.id }); });
     $$('[data-et]').forEach(b => b.onclick = () => go('pcModelo', { id: b.dataset.et }));
     $$('[data-dt]').forEach(b => b.onclick = async () => { const o = await Store.get('pcTemplates', b.dataset.dt); await Store.put('pcTemplates', { ...JSON.parse(JSON.stringify(o)), id: PC.uid(), name: o.name + ' (cópia)', createdAt: todayISO(), updatedAt: todayISO() }); toast('Modelo duplicado'); go('contratos'); });
     $$('[data-xt]').forEach(b => b.onclick = async () => { if (await confirmBox('Excluir modelo?', 'Contratos já criados com ele não mudam.')) { await Store.del('pcTemplates', b.dataset.xt); go('contratos'); } });
@@ -86,7 +97,7 @@ SCREENS.contratos = async ({ tab } = {}) => {
       const f = e.target.files[0]; if (!f) return;
       try { const d = JSON.parse(await f.text()); if (d.app !== 'teamrm-contratos') throw new Error('o arquivo não é de contratos do TEAMRM');
         if (!(await confirmBox('Importar contratos?', `${d.clients.length} clientes e ${d.contracts.length} contratos serão adicionados ou atualizados neste aparelho.`, 'Importar'))) return;
-        const n = await pcImportData(d); toast(`${n} contratos importados`); go('contratos', { tab: 'clientes' });
+        const n = await pcImportData(d); toast(`${n} contratos importados`); go('contratos', { tab: 'personal' });
       } catch (err) { toast('Não foi possível importar: ' + err.message, 4500); }
     };
   }
@@ -106,31 +117,68 @@ async function pcImportData(d) {
   for (const m of d.media || []) { const blob = await (await fetch(m.data)).blob(); await Store.put('media', { id: m.id, kind: 'file', blob, name: m.name, type: m.type, createdAt: todayISO() }); }
   return (d.contracts || []).length;
 }
-async function pcNewContract(clientId) {
-  const plans = await pcPlans(), clients = await pcClients(), ct = await pcTemplates('contrato'), gt = await pcTemplates('diretrizes'), y = new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0);
-  if (!clients.length) { toast('Cadastre o cliente primeiro'); return go('pcCliente', { id: null }); }
+async function pcNewContract(clientId, kind) {
+  const all = await pcClients(), pre = all.find(c => c.id === clientId); kind = pre ? pcCat(pre) : kind === 'online' ? 'online' : 'personal';
+  const on = kind === 'online', clients = all.filter(c => pcCat(c) === kind);
+  const plans = on ? await pcOnlinePlans() : await pcPlans(), ct = await pcTemplates('contrato', kind), gt = await pcTemplates('diretrizes', kind), y = new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0);
+  if (!clients.length) { toast(`Cadastre primeiro o aluno em “${PC_CATS[kind]}”`); return go('pcCliente', { id: null, category: kind }); }
   const m = document.createElement('div'); m.className = 'modal';
-  m.innerHTML = `<form class="panel" role="dialog" aria-modal="true" style="max-width:480px"><h2>Novo contrato</h2>
-    <label class="f">Cliente<select id="nk-c">${clients.map(c => `<option value="${c.id}"${c.id === clientId ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
-    <label class="f">Plano<select id="nk-p"><option value="">Sem plano (preencher à mão)</option>${plans.map(p => `<option value="${esc(p.name)}">${esc(p.name)} — ${p.perWeek}x/semana · ${esc(p.durTxt)} · ${esc(PC.money(p.monthly))}/mês</option>`).join('')}</select></label>
+  m.innerHTML = `<form class="panel" role="dialog" aria-modal="true" style="max-width:480px"><h2>Novo contrato · ${on ? 'serviço online' : 'personal trainer'}</h2>
+    <label class="f">Aluno<select id="nk-c">${clients.map(c => `<option value="${c.id}"${c.id === clientId ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
+    ${on ? `<label class="f">Serviço e plano<select id="nk-p"><option value="">Sem plano (preencher à mão)</option>${plans.map((p, i) => `<option value="${i}">${esc(p.service)} — ${esc(p.plan)} · ${esc(PC.money(p.amount))}</option>`).join('')}</select></label>
+    <label class="f">Início do contrato<input id="nk-s" type="date" value="${pcToday()}"></label>`
+    : `<label class="f">Plano<select id="nk-p"><option value="">Sem plano (preencher à mão)</option>${plans.map((p, i) => `<option value="${i}">${esc(p.name)} — ${p.perWeek}x/semana · ${esc(p.durTxt)} · ${esc(PC.money(p.monthly))}/mês</option>`).join('')}</select></label>
     <p class="muted" id="nk-pi" style="margin:0;font-size:.85rem"></p>
-    <label class="f">Ano do calendário<input id="nk-y" type="number" min="2020" max="2100" value="${y}"></label>
+    <label class="f">Ano do calendário<input id="nk-y" type="number" min="2020" max="2100" value="${y}"></label>`}
     <label class="f">Modelo de contrato<select id="nk-t"><option value="">Modelo padrão do app</option>${ct.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
     <label class="f">Modelo de diretrizes<select id="nk-g"><option value="">Modelo padrão do app</option>${gt.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
-    <label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="nk-h" checked> Incluir feriados nacionais e de Pouso Alegre/MG do ano</label>
+    ${on ? '' : '<label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="nk-h" checked> Incluir feriados nacionais e de Pouso Alegre/MG do ano</label>'}
     <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-x>Cancelar</button><button class="btn primary">Criar</button></div></form>`;
   document.body.appendChild(m);
   m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-x]')) m.remove(); });
-  $('#nk-p', m).onchange = e => { const p = plans.find(x => x.name === e.target.value); $('#nk-pi', m).textContent = p ? `Dias sugeridos: ${p.days.map(d => `${PC.DOW[d[0]]} (${d[1]} min)`).join(', ')}. Você pode mudar os dias e horários no calendário.` : ''; };
+  if (!on) $('#nk-p', m).onchange = e => { const p = plans[e.target.value]; $('#nk-pi', m).textContent = p ? `Dias sugeridos: ${p.days.map(d => `${PC.DOW[d[0]]} (${d[1]} min)`).join(', ')}. Você pode mudar os dias e horários no calendário.` : ''; };
+  else { // aluno vinculado em Alunos online: sugere o serviço que ele já tem
+    const sug = async () => { const cl = clients.find(c => c.id === $('#nk-c', m).value), st = cl?.studentId ? await Store.get('students', cl.studentId) : null; if (!st) return; const i = plans.findIndex(p => p.service === st.service && p.plan === st.plan); if (i >= 0) $('#nk-p', m).value = String(i); if (st.start) $('#nk-s', m).value = st.start; };
+    $('#nk-c', m).onchange = sug; sug();
+  }
   $('form', m).onsubmit = async e => {
-    e.preventDefault(); const year = +$('#nk-y', m).value || y, t = ct.find(x => x.id === $('#nk-t', m).value), g = gt.find(x => x.id === $('#nk-g', m).value);
-    const k = PC.blankContract($('#nk-c', m).value, year, t?.data, g?.data); k.createdAt = todayISO();
-    if ($('#nk-h', m).checked) k.schedule.offs = PC.holidays(year);
+    e.preventDefault(); const t = ct.find(x => x.id === $('#nk-t', m).value), g = gt.find(x => x.id === $('#nk-g', m).value);
+    const start = on ? ($('#nk-s', m).value || pcToday()) : '', year = on ? +start.slice(0, 4) : (+$('#nk-y', m).value || y);
+    const k = PC.blankContract($('#nk-c', m).value, year, t?.data, g?.data, kind); k.createdAt = todayISO();
+    if (!on && $('#nk-h', m).checked) k.schedule.offs = PC.holidays(year);
     const cl = clients.find(c => c.id === k.clientId), P = await pcProfessional();
     pcPrefill(k, cl, P);
-    const plan = plans.find(x => x.name === $('#nk-p', m).value); if (plan) pcApplyPlan(k, plan);
-    m.remove(); PCX.draft = k; PCX.mode = 'fill'; pcSetDirty(true); go('pcContrato', { id: k.id, isNew: true });
+    const plan = plans[$('#nk-p', m).value];
+    if (on) { k.online.start = start; k.online.end = ''; const st = cl?.studentId ? await Store.get('students', cl.studentId) : null; if (plan) pcApplyOnline(k, plan, st); else pcSyncOnline(k); }
+    else if (plan) pcApplyPlan(k, plan);
+    m.remove(); PCX.draft = k; PCX.mode = 'fill'; PCX.ktab = 'contrato'; pcSetDirty(true); go('pcContrato', { id: k.id, isNew: true });
   };
+}
+// serviços online: tabela de valores de Alunos online (sem os planos presenciais)
+async function pcOnlinePlans() {
+  const cat = typeof alCatalog === 'function' ? await alCatalog() : (AL.DEFAULT_CATALOG || []);
+  return cat.filter(x => x.group !== 'Personal trainer presencial').map(x => ({ ...x, amount: Number(x.amount) || 0 }));
+}
+function pcAddMonths(isoD, n) { if (!isoD || !n) return ''; const d = new Date(isoD + 'T12:00:00Z'); d.setUTCMonth(d.getUTCMonth() + Number(n)); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10); }
+function pcApplyOnline(k, p, st) {
+  const O = k.online; Object.assign(O, { service: p.service, plan: p.plan, months: p.months, amount: p.amount, paymentType: p.paymentType || '' });
+  if (st?.paymentMethod) O.paymentMethod = st.paymentMethod; if (st?.paymentType) O.paymentType = st.paymentType;
+  O.end = st?.end && st.start === O.start ? st.end : pcAddMonths(O.start, p.months);
+  k.plan = `${p.service} — ${p.plan}`; k.title = `${p.service} · ${p.plan} ${(O.start || '').slice(0, 4)}`.trim();
+  pcSyncOnline(k);
+}
+// leva a vigência para os campos do contrato (só os que têm valor)
+function pcSyncOnline(k) {
+  const O = k.online || {}, set = (label, v) => { for (const s of k.sections) for (const i of s.items) if (i.type === 'field' && i.label === label) i.value = v || ''; };
+  set('Serviço contratado', O.service); set('Plano', O.plan ? `${O.plan}${O.months ? ` (${O.months} ${O.months > 1 ? 'meses' : 'mês'})` : ''}` : '');
+  set('Início do contrato', PC.br(O.start)); set('Término do contrato', PC.br(O.end));
+  set('Valor do plano', O.amount != null && O.amount !== '' ? PC.money(O.amount) + (O.months > 1 ? ` (${O.months} meses)` : '') : '');
+  set('Forma de pagamento', [O.paymentType, O.paymentMethod].filter(Boolean).join(' · ')); set('Vencimento', O.due);
+}
+async function pcFromStudents(list) {
+  if (!(await confirmBox('Trazer alunos?', `${list.length} aluno${list.length > 1 ? 's' : ''} de “Alunos online” ser${list.length > 1 ? 'ão' : 'á'} cadastrado${list.length > 1 ? 's' : ''} em “${PC_CATS.online}”, com nome, telefone e serviço. Nada é apagado.`, 'Trazer'))) return;
+  for (const st of list) await Store.put('pcClients', { id: PC.uid(), category: 'online', name: st.name, cpf: '', phone: st.phone || '', email: '', address: '', notes: '', studentId: st.id, service: st.service || '', docs: [], createdAt: todayISO() });
+  toast(`${list.length} aluno${list.length > 1 ? 's' : ''} cadastrado${list.length > 1 ? 's' : ''}`); go('contratos', { tab: 'online' });
 }
 // planos de personal (tabela de valores de Alunos online)
 async function pcPlans() {
@@ -160,32 +208,35 @@ function pcPrefill(k, cl, P) {
 }
 
 /* ================= cliente ================= */
-SCREENS.pcCliente = async ({ id }) => {
+SCREENS.pcCliente = async ({ id, category }) => {
   const old = id ? await Store.get('pcClients', id) : null;
-  const c = old ? JSON.parse(JSON.stringify(old)) : { id: PC.uid(), name: '', cpf: '', phone: '', email: '', address: '', notes: '', studentId: '', docs: [], createdAt: todayISO() };
+  const c = old ? JSON.parse(JSON.stringify(old)) : { id: PC.uid(), category: category === 'online' ? 'online' : 'personal', name: '', cpf: '', phone: '', email: '', address: '', notes: '', studentId: '', docs: [], createdAt: todayISO() };
+  c.category = pcCat(c);
   PCX.draftClient = c;
-  const ks = id ? (await pcAll('pcContracts')).filter(k => k.clientId === id).sort((a, b) => (b.schedule?.year || 0) - (a.schedule?.year || 0) || b.version - a.version) : [];
+  const ks = id ? (await pcAll('pcContracts')).filter(k => k.clientId === id).sort((a, b) => (PC.yearOf(b) || 0) - (PC.yearOf(a) || 0) || b.version - a.version) : [];
   const students = typeof AL !== 'undefined' ? (await Store.all('students')).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')) : [];
   const t = pcToday(), F = (k, l, type = 'text', ph = '') => `<label class="f"${['name', 'address'].includes(k) ? ' style="grid-column:1/-1"' : ''}>${l}<input id="cf-${k}" type="${type}" value="${esc(c[k] || '')}" placeholder="${esc(ph)}"></label>`;
-  app.innerHTML = `${back('Contratos Personal')}<div class="row spread"><h1>${old ? esc(c.name) : 'Novo cliente'}</h1>${old ? '<button class="btn danger" id="cf-del">Excluir cliente</button>' : ''}</div>
-    <section class="panel stack"><h2>Dados do aluno</h2><div class="grid-form">${F('name', 'Nome completo *')}${F('cpf', 'CPF', 'text', '000.000.000-00')}${F('phone', 'Telefone', 'tel')}${F('email', 'E-mail', 'email')}${F('address', 'Endereço')}
+  app.innerHTML = `${back(PC_CATS[c.category])}<div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">${esc(PC_CATS[c.category])}</span><h1>${old ? esc(c.name) : 'Novo aluno'}</h1></div>${old ? '<button class="btn danger" id="cf-del">Excluir cliente</button>' : ''}</div>
+    <section class="panel stack"><h2>Dados do aluno</h2><div class="grid-form">
+      <label class="f" style="grid-column:1/-1">Tipo de aluno<select id="cf-category">${Object.entries(PC_CATS).map(([v, l]) => `<option value="${v}"${v === c.category ? ' selected' : ''}>${l}</option>`).join('')}</select></label>${F('name', 'Nome completo *')}${F('cpf', 'CPF', 'text', '000.000.000-00')}${F('phone', 'Telefone', 'tel')}${F('email', 'E-mail', 'email')}${F('address', 'Endereço')}
       <label class="f">Aluno vinculado (Alunos online)<select id="cf-studentId"><option value="">Nenhum</option>${students.map(s => `<option value="${s.id}"${s.id === c.studentId ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>
       <label class="f" style="grid-column:1/-1">Observações<textarea id="cf-notes" rows="2">${esc(c.notes || '')}</textarea></label></div>
       <div class="row" style="justify-content:flex-end"><button class="btn primary" id="cf-save">Salvar</button></div></section>
     ${old ? `<section class="panel stack"><div class="row spread"><h2>Contratos</h2><button class="btn small primary" id="cf-newk">+ Novo contrato</button></div>
-      ${ks.length ? `<div class="plist">${ks.map(k => { const s = PC.statusOf(k, t); return `<button class="prow" data-k="${k.id}" style="grid-template-columns:1fr auto"><span><b>${esc(k.title)}</b> <span class="muted">· v${k.version}</span><br><span class="muted" style="font-size:.85rem">${esc(PC.br(k.schedule?.start))} a ${esc(PC.br(k.schedule?.end))}</span></span><span class="st ${pcStTone(s)}">${esc(PC.STATUS[s])}</span></button>`; }).join('')}</div>` : '<p class="muted" style="margin:0">Nenhum contrato.</p>'}</section>
+      ${ks.length ? `<div class="plist">${ks.map(k => { const s = PC.statusOf(k, t); return `<button class="prow" data-k="${k.id}" style="grid-template-columns:1fr auto"><span><b>${esc(k.title)}</b> <span class="muted">· v${k.version}</span><br><span class="muted" style="font-size:.85rem">${esc(PC.br(PC.periodOf(k).start))} a ${esc(PC.br(PC.periodOf(k).end) || 'sem término')}</span></span><span class="st ${pcStTone(s)}">${esc(PC.STATUS[s])}</span></button>`; }).join('')}</div>` : '<p class="muted" style="margin:0">Nenhum contrato.</p>'}</section>
     <section class="panel stack"><div class="row spread"><h2>Documentos do aluno</h2><label class="btn small" style="cursor:pointer">+ Anexar<input type="file" id="cf-up" accept="application/pdf,image/*" hidden multiple></label></div>${pcDocsList(c.docs)}</section>` : ''}`;
-  bindBack('contratos', {});
-  const inputs = $$('#cf-name,#cf-cpf,#cf-phone,#cf-email,#cf-address,#cf-notes,#cf-studentId'); inputs.forEach(i => i.oninput = i.onchange = () => pcSetDirty(true));
+  bindBack('contratos', { tab: c.category });
+  const inputs = $$('#cf-category,#cf-name,#cf-cpf,#cf-phone,#cf-email,#cf-address,#cf-notes,#cf-studentId'); inputs.forEach(i => i.oninput = i.onchange = () => pcSetDirty(true));
   $('#cf-save').onclick = async () => {
-    for (const k of ['name', 'cpf', 'phone', 'email', 'address', 'notes', 'studentId']) c[k] = $('#cf-' + k).value.trim();
+    for (const k of ['category', 'name', 'cpf', 'phone', 'email', 'address', 'notes', 'studentId']) c[k] = $('#cf-' + k).value.trim();
+    if (old && pcCat(old) !== c.category && ks.some(k => pcKind(k) !== c.category)) toast('Os contratos já criados continuam do tipo original; os novos seguem o novo tipo.', 4500);
     if (!c.name) { toast('Informe o nome do aluno'); return $('#cf-name').focus(); }
     c.updatedAt = todayISO(); await Store.put('pcClients', c); pcSetDirty(false); PCX.draftClient = null; toast('Cliente salvo'); go('pcCliente', { id: c.id });
   };
   if (old) {
     $('#cf-newk').onclick = () => pcNewContract(c.id);
     $$('[data-k]').forEach(b => b.onclick = () => go('pcContrato', { id: b.dataset.k }));
-    $('#cf-del').onclick = async () => { if (!(await confirmBox('Excluir cliente?', `${c.name}, os ${ks.length} contratos e os documentos anexados serão apagados deste aparelho.`))) return; for (const k of ks) await pcDeleteContract(k); for (const d of c.docs || []) await Store.del('media', d.mediaId); await Store.del('pcClients', c.id); PCX.dirty = false; toast('Cliente excluído'); go('contratos'); };
+    $('#cf-del').onclick = async () => { if (!(await confirmBox('Excluir cliente?', `${c.name}, os ${ks.length} contratos e os documentos anexados serão apagados deste aparelho.`))) return; for (const k of ks) await pcDeleteContract(k); for (const d of c.docs || []) await Store.del('media', d.mediaId); await Store.del('pcClients', c.id); PCX.dirty = false; toast('Aluno excluído'); go('contratos', { tab: c.category }); };
     pcBindDocs(c.docs, async docs => { const cur = await Store.get('pcClients', c.id); cur.docs = docs; await Store.put('pcClients', cur); go('pcCliente', { id: c.id }); }, '#cf-up');
   }
 };
@@ -202,9 +253,10 @@ SCREENS.pcContrato = async ({ id, tab, isNew }) => {
   if (tab) PCX.ktab = tab; PCX.ktab ||= 'contrato';
   if (!PCX.draft || PCX.draft.id !== id) { const k = await Store.get('pcContracts', id); if (!k) return go('contratos'); PCX.draft = JSON.parse(JSON.stringify(k)); pcSetDirty(false); }
   const k = PCX.draft, cl = await Store.get('pcClients', k.clientId), st = PC.statusOf(k, pcToday()), locked = pcLocked(k);
-  const TABS = [['contrato', 'Contrato'], ['calendario', 'Calendário'], ['diretrizes', 'Diretrizes'], ['documentos', 'Documentos'], ['assinatura', 'Assinatura']];
+  const on = pcKind(k) === 'online', TABS = [['contrato', 'Contrato'], on ? ['vigencia', 'Vigência e valores'] : ['calendario', 'Calendário'], ['diretrizes', 'Diretrizes'], ['documentos', 'Documentos'], ['assinatura', 'Assinatura']];
+  if (on && PCX.ktab === 'calendario') PCX.ktab = 'vigencia'; if (!on && PCX.ktab === 'vigencia') PCX.ktab = 'calendario';
   app.innerHTML = `${back(cl?.name || 'Contratos')}
-    <div class="row spread" style="align-items:flex-start"><div class="stack" style="gap:4px;min-width:0;flex:1"><span class="eyebrow">${esc(cl?.name || '')} · versão ${k.version}${k.parentId ? ' (aditivo)' : ''}</span>
+    <div class="row spread" style="align-items:flex-start"><div class="stack" style="gap:4px;min-width:0;flex:1"><span class="eyebrow">${on ? 'Serviço online' : 'Personal trainer'} · ${esc(cl?.name || '')} · versão ${k.version}${k.parentId ? ' (aditivo)' : ''}</span>
       <input class="pctitle" id="k-title" value="${esc(k.title)}" aria-label="Título do contrato" ${locked ? 'disabled' : ''}><span class="row" style="gap:6px"><span class="st ${pcStTone(st)}">${esc(PC.STATUS[st])}</span>${PCX.dirty ? '<span class="st warn">Alterações não salvas</span>' : ''}</span></div></div>
     <div class="pcbar"><button class="btn primary" id="pc-save" ${PCX.dirty ? '' : 'disabled'}>${PCX.dirty ? 'Salvar' : 'Salvo'}</button><button class="btn" id="k-view">Visualizar</button><button class="btn" id="k-pdf">Exportar PDF</button>
       ${k.status === 'rascunho' ? '<button class="btn" id="k-send">Enviar para assinatura</button>' : ''}<button class="btn" id="k-dup">Duplicar</button>${k.status === 'assinado' || st === 'vencido' ? '<button class="btn" id="k-ver">Nova versão / aditivo</button>' : ''}
@@ -223,7 +275,7 @@ SCREENS.pcContrato = async ({ id, tab, isNew }) => {
   const cn = $('#k-cancel'); if (cn) cn.onclick = async () => { if (!(await confirmBox('Cancelar contrato?', 'O contrato fica marcado como cancelado e somente leitura. Os documentos continuam guardados.', 'Cancelar contrato'))) return; const o = await Store.get('pcContracts', id); o.status = 'cancelado'; (o.history ||= []).push({ at: todayISO(), event: 'Contrato cancelado' }); await Store.put('pcContracts', o); PCX.draft = null; PCX.dirty = false; go('pcContrato', { id }); };
   $('#k-del').onclick = async () => { if (!(await confirmBox('Excluir contrato?', `“${k.title}” (versão ${k.version}), o calendário, as diretrizes e os documentos anexados serão apagados deste aparelho.${k.status === 'assinado' ? ' Atenção: é um documento assinado.' : ''}`))) return; await pcDeleteContract(k); PCX.dirty = false; PCX.draft = null; toast('Contrato excluído'); go(cl ? 'pcCliente' : 'contratos', cl ? { id: cl.id } : {}); };
   const body = $('#k-body');
-  ({ contrato: pcTabContrato, calendario: pcTabCalendario, diretrizes: pcTabDiretrizes, documentos: pcTabDocs, assinatura: pcTabAssinatura })[PCX.ktab](body, k, cl, locked);
+  ({ contrato: pcTabContrato, calendario: pcTabCalendario, vigencia: pcTabVigencia, diretrizes: pcTabDiretrizes, documentos: pcTabDocs, assinatura: pcTabAssinatura })[PCX.ktab](body, k, cl, locked);
 };
 async function pcSave() {
   const k = PCX.draft; if (!k) return;
@@ -232,6 +284,31 @@ async function pcSave() {
   pcSetDirty(false); toast('Contrato salvo'); go('pcContrato', { id: k.id });
 }
 const pcRerender = () => (String(PCX.draft?.id || '').startsWith('tpl:') ? window.__pcTplRender?.() : go('pcContrato', { id: PCX.draft.id }));
+
+/* ---------- aba Vigência (serviços online) ---------- */
+async function pcTabVigencia(body, k, cl, locked) {
+  const O = k.online ||= { start: '', end: '', months: 1, plan: '', amount: null, paymentType: '', paymentMethod: '', due: '' }, dis = locked ? 'disabled' : '';
+  const plans = await pcOnlinePlans(), opts = typeof alList === 'function' ? { types: await alList('payTypes'), methods: await alList('payMethods') } : { types: [], methods: [] };
+  const sel = (id, list, v) => `<select id="${id}" ${dis}><option value="">—</option>${[...new Set([...list, v].filter(Boolean))].map(x => `<option${x === v ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
+  const st = cl?.studentId ? await Store.get('students', cl.studentId) : null;
+  body.innerHTML = `<section class="panel stack"><h2>Serviço e vigência</h2>
+      <label class="f">Aplicar um plano da tabela<select id="vg-p" ${dis}><option value="">Escolher…</option>${plans.map((p, i) => `<option value="${i}">${esc(p.service)} — ${esc(p.plan)} · ${esc(PC.money(p.amount))}</option>`).join('')}</select></label>
+      <div class="grid-form"><label class="f" style="grid-column:1/-1">Serviço<input id="vg-service" value="${esc(O.service || '')}" ${dis}></label>
+        <label class="f">Plano<input id="vg-plan" value="${esc(O.plan || '')}" ${dis}></label><label class="f">Duração (meses)<input id="vg-months" type="number" min="1" max="60" value="${esc(O.months || '')}" ${dis}></label>
+        <label class="f">Início<input id="vg-start" type="date" value="${esc(O.start || '')}" ${dis}></label><label class="f">Término<input id="vg-end" type="date" value="${esc(O.end || '')}" ${dis}></label></div>
+      ${locked ? '' : '<div class="row"><button class="btn small" id="vg-calc">Calcular término pela duração</button></div>'}</section>
+    <section class="panel stack"><h2>Valores e pagamento</h2><div class="grid-form">
+        <label class="f">Valor do plano (R$)<input id="vg-amount" type="number" step="0.01" min="0" value="${O.amount ?? ''}" ${dis}></label><label class="f">Vencimento<input id="vg-due" value="${esc(O.due || '')}" placeholder="ex.: todo dia 10" ${dis}></label>
+        <label class="f">Tipo de pagamento${sel('vg-paymentType', opts.types, O.paymentType)}</label><label class="f">Forma de pagamento${sel('vg-paymentMethod', opts.methods, O.paymentMethod)}</label></div>
+      <p class="muted" style="margin:0;font-size:.85rem">Estes dados vão automaticamente para os campos do contrato (Serviço, Plano, Início, Término, Valor, Forma de pagamento e Vencimento). Salve para guardar.</p></section>
+    ${st ? `<section class="panel stack"><h2>Em “Alunos online”</h2><p style="margin:0;font-size:.92rem">${esc(st.service || '—')} · ${esc(st.plan || '—')} · ${esc(PC.br(st.start) || '—')} a ${esc(PC.br(st.end) || '—')}${st.amount ? ' · ' + esc(PC.money(st.amount)) : ''}</p>${locked ? '' : '<div class="row"><button class="btn small" id="vg-al">Usar estes dados</button></div>'}</section>` : ''}`;
+  const keys = ['service', 'plan', 'months', 'start', 'end', 'amount', 'due', 'paymentType', 'paymentMethod'];
+  const read = () => { for (const f of keys) { const v = $('#vg-' + f).value.trim(); O[f] = f === 'months' ? (v ? +v : '') : f === 'amount' ? (v === '' ? null : +v) : v; } };
+  keys.forEach(f => { const el = $('#vg-' + f); el.oninput = el.onchange = () => { read(); pcSyncOnline(k); pcSetDirty(); }; });
+  $('#vg-p').onchange = e => { const p = plans[e.target.value]; if (!p) return; read(); pcApplyOnline(k, p, null); pcSetDirty(); pcRerender(); };
+  const vc = $('#vg-calc'); if (vc) vc.onclick = () => { read(); if (!O.start || !O.months) return toast('Informe o início e a duração'); O.end = pcAddMonths(O.start, O.months); pcSyncOnline(k); pcSetDirty(); pcRerender(); };
+  const va = $('#vg-al'); if (va) va.onclick = () => { Object.assign(O, { service: st.service || O.service, plan: st.plan || O.plan, start: st.start || O.start, end: st.end || O.end, amount: st.amount !== '' && st.amount != null ? Number(st.amount) : O.amount, paymentType: st.paymentType || O.paymentType, paymentMethod: st.paymentMethod || O.paymentMethod }); pcSyncOnline(k); pcSetDirty(); pcRerender(); };
+}
 
 /* ---------- aba Contrato: preencher / editar estrutura ---------- */
 function pcTabContrato(body, k, cl, locked) {
@@ -456,15 +533,17 @@ async function pcRegisterSignature(k, cl) {
 
 /* ---------- visualizar (mesmo conteúdo do PDF) ---------- */
 async function pcDocHTML(k, cl, part = 'completo') {
-  const P = await pcProfessional(), Y = PC.yearSummary(k.schedule), S = k.schedule;
+  const P = await pcProfessional(), Y = PC.yearSummary(k.schedule), S = k.schedule, on = pcKind(k) === 'online', O = k.online || {};
   const contrato = `<h2>${esc(k.title)}</h2>${k.sections.map(s => `<h3>${esc(s.title)}</h3>${s.items.map(i => i.type === 'field' ? `<p class="pcrow"><span>${esc(i.label)}</span><b>${esc(i.value || '')}</b></p>` : `<p><b>${esc(i.label)}.</b> ${esc(i.text || '')}</p>`).join('')}`).join('')}`;
   const cal = `<h2>Calendário de aulas ${S.year}</h2><p>Período: ${esc(PC.br(S.start))} a ${esc(PC.br(S.end))}. Dias: ${esc(PC.ruleAt(S, S.start).days.map(d => `${PC.DOW[d.dow]}${d.time ? ' ' + d.time : ''} (${d.dur} min, ${PC.money(d.price)})`).join('; ') || '—')}.</p>
     <table><thead><tr><th>Mês</th><th>Aulas</th><th>Descontadas</th><th>Valor</th></tr></thead><tbody>${Y.months.map(M => `<tr><td>${PC.MONTHS[M.m - 1]}</td><td>${M.effective}</td><td>${M.discounted}</td><td>${PC.money(M.value)}${M.manual ? ' *' : ''}</td></tr>`).join('')}<tr><td><b>Total</b></td><td><b>${Y.lessons}</b></td><td></td><td><b>${PC.money(Y.total)}</b></td></tr></tbody></table>
     ${S.fixedMonthly ? `<p><b>Valor mensal fixo: ${PC.money(Y.fixed)}</b> (${PC.money(Y.total)} ÷ 12${Y.fixedManual ? '; ajuste manual' : ''}).</p>` : ''}${Y.months.some(M => M.manual) ? '<p class="muted">* valor ajustado manualmente.</p>' : ''}
     <h3>Datas sem aula e reposições</h3><ul>${S.offs.filter(o => o.kind === 'reposicao' || o.discount).sort((a, b) => a.date.localeCompare(b.date)).map(o => `<li>${PC.br(o.date)} — ${esc(o.name)} (${esc(PC.OFF_KIND[o.kind])})</li>`).join('') || '<li>Nenhuma</li>'}</ul>`;
-  const dir = `<h2>Diretrizes das aulas</h2>${k.guidelines.map((g, i) => `<h3>${String(i + 1).padStart(2, '0')} · ${esc(g.title)}</h3><div>${PC.sanitize(g.html) || '<p class="muted">—</p>'}</div>`).join('')}`;
+  const vig = `<h2>Vigência e valores</h2><p class="pcrow"><span>Serviço</span><b>${esc(O.service || '')}</b></p><p class="pcrow"><span>Plano</span><b>${esc(O.plan || '')}${O.months ? ` (${O.months} ${O.months > 1 ? 'meses' : 'mês'})` : ''}</b></p><p class="pcrow"><span>Período</span><b>${esc(PC.br(O.start))} a ${esc(PC.br(O.end))}</b></p><p class="pcrow"><span>Valor</span><b>${O.amount != null && O.amount !== '' ? PC.money(O.amount) : ''}</b></p><p class="pcrow"><span>Pagamento</span><b>${esc([O.paymentType, O.paymentMethod].filter(Boolean).join(' · '))}</b></p><p class="pcrow"><span>Vencimento</span><b>${esc(O.due || '')}</b></p>`;
+  const dir = `<h2>${on ? 'Diretrizes do serviço' : 'Diretrizes das aulas'}</h2>${k.guidelines.map((g, i) => `<h3>${String(i + 1).padStart(2, '0')} · ${esc(g.title)}</h3><div>${PC.sanitize(g.html) || '<p class="muted">—</p>'}</div>`).join('')}`;
   const head = `<p class="muted">${esc(P.name || 'Profissional')}${P.reg ? ' · ' + esc(P.reg) : ''} · Aluno: ${esc(cl?.name || '')} · Versão ${k.version}</p>`;
-  return head + (part === 'contrato' ? contrato : part === 'calendario' ? cal : part === 'diretrizes' ? dir : contrato + cal + dir);
+  const cv = on ? vig : cal;
+  return head + (part === 'contrato' ? contrato : part === 'calendario' || part === 'vigencia' ? cv : part === 'diretrizes' ? dir : contrato + cv + dir);
 }
 async function pcPreview(k, cl) {
   const m = document.createElement('div'); m.className = 'modal';
@@ -476,7 +555,7 @@ function pcPdfMenu(k, cl) {
   const signed = k.status === 'assinado' || PC.statusOf(k, pcToday()) === 'vencido';
   const m = document.createElement('div'); m.className = 'modal';
   m.innerHTML = `<div class="panel" role="dialog" aria-modal="true"><h2>Exportar PDF</h2><div class="stack">
-    ${[['contrato', 'Somente o contrato'], ['calendario', 'Somente o calendário'], ['diretrizes', 'Somente as diretrizes'], ['completo', 'Conjunto completo (um arquivo)'], ...(signed ? [['assinado', 'Versão assinada com evidências']] : [])].map(([p, l]) => `<button class="btn" data-p="${p}">${l}</button>`).join('')}
+    ${[['contrato', 'Somente o contrato'], pcKind(k) === 'online' ? ['vigencia', 'Somente a vigência e os valores'] : ['calendario', 'Somente o calendário'], ['diretrizes', 'Somente as diretrizes'], ['completo', 'Conjunto completo (um arquivo)'], ...(signed ? [['assinado', 'Versão assinada com evidências']] : [])].map(([p, l]) => `<button class="btn" data-p="${p}">${l}</button>`).join('')}
     ${PCX.dirty ? '<p class="muted" style="margin:0;font-size:.85rem">O PDF sai com o conteúdo da tela, incluindo alterações ainda não salvas.</p>' : ''}${!signed ? '<p class="muted" style="margin:0;font-size:.85rem">A versão assinada aparece aqui depois de registrar a assinatura.</p>' : ''}</div><div class="row" style="justify-content:flex-end"><button class="btn" data-x>Fechar</button></div></div>`;
   document.body.appendChild(m); m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-x]')) m.remove(); });
   $$('[data-p]', m).forEach(b => b.onclick = async () => { b.disabled = true; b.textContent = 'Gerando…'; try { await pcPDF(k, cl, b.dataset.p); toast('PDF gerado'); } catch (e) { toast('Não foi possível gerar o PDF: ' + e.message, 4000); } m.remove(); });
@@ -486,7 +565,7 @@ function pcPdfMenu(k, cl) {
 SCREENS.pcModelo = async ({ id }) => {
   const t = await Store.get('pcTemplates', id); if (!t) return go('contratos');
   // reaproveita os editores sobre um "contrato" de mentira
-  const fake = PC.blankContract('', new Date().getFullYear(), t.type === 'contrato' ? t.data : undefined, t.type === 'diretrizes' ? t.data : undefined); fake.id = 'tpl:' + t.id;
+  const fake = PC.blankContract('', new Date().getFullYear(), t.type === 'contrato' ? t.data : undefined, t.type === 'diretrizes' ? t.data : undefined, t.kind || 'personal'); fake.id = 'tpl:' + t.id;
   app.innerHTML = `${back('Modelos')}<div class="row spread"><input class="pctitle" id="tp-name" value="${esc(t.name)}" aria-label="Nome do modelo"><button class="btn primary" id="tp-save">Salvar modelo</button></div>
     <p class="muted" style="margin:0">Alterar este modelo não muda contratos já criados.</p><div id="tp-body" class="stack"></div>`;
   bindBack('contratos', { tab: 'modelos' });

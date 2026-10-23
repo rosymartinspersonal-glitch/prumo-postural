@@ -4,7 +4,7 @@
 async function pcPDF(k, cl, part) {
   if (!window.jspdf) await withTimeout(loadScript('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'), 20000);
   const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'mm', format: 'a4' });
-  const P = await pcProfessional(), S = k.schedule, Y = PC.yearSummary(S);
+  const P = await pcProfessional(), S = k.schedule, Y = PC.yearSummary(S), on = k.kind === 'online', O = k.online || {};
   const W = 210, H = 297, M = 15, INK = [17, 17, 17], MUT = [93, 92, 87], ACC = [231, 152, 19], GREEN = [23, 128, 74], RED = [192, 40, 58];
   const T = s => pdfSafe(s);
   let y = 0, title = '';
@@ -36,7 +36,7 @@ async function pcPDF(k, cl, part) {
   };
   const signLines = () => { need(40); y += 16; const w = (W - 2 * M - 16) / 2; doc.setDrawColor(...INK); doc.line(M, y, M + w, y); doc.line(M + w + 16, y, W - M, y); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(T(cl?.name || 'Aluno(a)'), M + w / 2, y + 4.5, { align: 'center' }); doc.text(T(P.name || 'Profissional'), M + w + 16 + w / 2, y + 4.5, { align: 'center' }); doc.setFontSize(8); doc.setTextColor(...MUT); doc.text('Contratante', M + w / 2, y + 8.5, { align: 'center' }); doc.text(T('Contratada' + (P.reg ? ' · ' + P.reg : '')), M + w + 16 + w / 2, y + 8.5, { align: 'center' }); y += 14; };
 
-  const partContrato = () => { newPage('Contrato de prestação de serviços de personal trainer'); h2(k.title); for (const s of k.sections) { h3(s.title); for (const i of s.items) { if (i.type === 'field') field(i.label, i.value); else { para(i.label, 9.5, INK, 0, true); y -= 0.6; para(i.text || '', 9.5); } } y += 2; } signLines(); };
+  const partContrato = () => { newPage(on ? 'Contrato de prestação de serviços online' : 'Contrato de prestação de serviços de personal trainer'); h2(k.title); for (const s of k.sections) { h3(s.title); for (const i of s.items) { if (i.type === 'field') field(i.label, i.value); else { para(i.label, 9.5, INK, 0, true); y -= 0.6; para(i.text || '', 9.5); } } y += 2; } signLines(); };
   const partCal = () => {
     newPage(`Calendário de aulas de personal — ${S.year}`);
     h2(`Calendário ${S.year}`);
@@ -76,7 +76,13 @@ async function pcPDF(k, cl, part) {
     if (offs.length) { h3('Feriados, recessos, pausas e reposições'); table(['Data', 'Dia', 'Descrição', 'Situação'], offs.map(o => { const les = PC.monthLessons(S, +o.date.slice(0, 4), +o.date.slice(5, 7)).find(x => x.date === o.date); return [PC.br(o.date), PC.DOW[PC.dowOf(o.date)], o.name.slice(0, 44), o.kind === 'reposicao' ? 'Reposição' : les && les.discounted ? 'Sem atendimento' : les ? 'Aula mantida' : 'Não é dia de aula']; }), [26, 24, 82, 48]); }
     const notes = Object.entries(S.lessons || {}).filter(([, v]) => v.note).sort(); if (notes.length) { h3('Observações por data'); for (const [d, v] of notes) para(`${PC.br(d)}: ${v.note}`, 9); }
   };
-  const partDir = () => { newPage('Diretrizes das aulas de personal'); h2('Manual das aulas — diretrizes do atendimento'); k.guidelines.forEach((g, i) => { h3(`${String(i + 1).padStart(2, '0')}  ${g.title}`); const L = PC.htmlToLines(g.html); if (!L.length) para('—', 9.5, MUT); for (const l of L) para(l, 9.5, INK, l.startsWith('•') ? 3 : 0); y += 2; }); };
+  const partVig = () => {
+    newPage('Vigência e valores do serviço online'); h2('Vigência e valores');
+    field('Serviço', O.service || ''); field('Plano', `${O.plan || ''}${O.months ? ` (${O.months} ${O.months > 1 ? 'meses' : 'mês'})` : ''}`);
+    field('Início', PC.br(O.start)); field('Término', PC.br(O.end)); field('Valor do plano', O.amount != null && O.amount !== '' ? PC.money(O.amount) : '');
+    field('Tipo de pagamento', O.paymentType || ''); field('Forma de pagamento', O.paymentMethod || ''); field('Vencimento', O.due || '');
+  };
+  const partDir = () => { newPage(on ? 'Diretrizes do serviço online' : 'Diretrizes das aulas de personal'); h2(on ? 'Diretrizes do serviço online' : 'Manual das aulas — diretrizes do atendimento'); k.guidelines.forEach((g, i) => { h3(`${String(i + 1).padStart(2, '0')}  ${g.title}`); const L = PC.htmlToLines(g.html); if (!L.length) para('—', 9.5, MUT); for (const l of L) para(l, 9.5, INK, l.startsWith('•') ? 3 : 0); y += 2; }); };
   const partProof = () => {
     const sg = k.signing || {};
     newPage('Comprovante de assinatura'); h2('Comprovante de assinatura eletrônica');
@@ -91,13 +97,13 @@ async function pcPDF(k, cl, part) {
   };
 
   if (part === 'contrato') partContrato();
-  else if (part === 'calendario') partCal();
+  else if (part === 'calendario' || part === 'vigencia') (on ? partVig : partCal)();
   else if (part === 'diretrizes') partDir();
   else if (part === 'comprovante') partProof();
-  else { partContrato(); partCal(); partDir(); if (part === 'completo') { newPage(); h2('Assinaturas'); para(k.signing?.hash ? `Código de verificação desta versão (SHA-256): ${k.signing.hash}` : 'Documento em rascunho: congele a versão na aba Assinatura antes de enviar para assinar.', 8.5, MUT); signLines(); } else partProof(); }
+  else { partContrato(); (on ? partVig : partCal)(); partDir(); if (part === 'completo') { newPage(); h2('Assinaturas'); para(k.signing?.hash ? `Código de verificação desta versão (SHA-256): ${k.signing.hash}` : 'Documento em rascunho: congele a versão na aba Assinatura antes de enviar para assinar.', 8.5, MUT); signLines(); } else partProof(); }
 
   const n = doc.getNumberOfPages();
   for (let i = 1; i <= n; i++) { doc.setPage(i); doc.setFontSize(7.5); doc.setTextColor(...MUT); doc.text(T(`${P.name || ''}${P.name ? ' · ' : ''}Aluno: ${cl?.name || ''}${k.signing?.hash ? ' · versão ' + k.version + ' · ' + k.signing.hash.slice(0, 16) : ''}`), M, H - 8, { maxWidth: W - 2 * M - 30 }); doc.text(`Página ${i} de ${n}`, W - M, H - 8, { align: 'right' }); }
-  const names = { contrato: 'contrato', calendario: 'calendario', diretrizes: 'diretrizes', completo: 'contrato-completo', assinado: 'contrato-assinado', comprovante: 'comprovante-assinatura' };
-  doc.save(`${names[part]}-${slug(cl?.name || 'aluno')}-${S.year}-v${k.version}.pdf`);
+  const names = { contrato: 'contrato', calendario: 'calendario', vigencia: 'vigencia', diretrizes: 'diretrizes', completo: 'contrato-completo', assinado: 'contrato-assinado', comprovante: 'comprovante-assinatura' };
+  doc.save(`${names[part]}${on ? '-online' : ''}-${slug(cl?.name || 'aluno')}-${PC.yearOf(k) || S.year}-v${k.version}.pdf`);
 }

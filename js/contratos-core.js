@@ -107,7 +107,22 @@ const PC = (() => {
       { id: uid(), title: 'Observações e cláusulas adicionais', items: [C('Observações', '')] },
     ];
   }
+  // serviços online (consultoria, planilhas, dieta): sem calendário de aulas, com vigência
+  function contractTemplateOnline() {
+    return [
+      { id: uid(), title: 'Contratante (aluno)', items: [F('Nome completo'), F('CPF'), F('Telefone'), F('E-mail'), F('Endereço')] },
+      { id: uid(), title: 'Contratada (profissional)', items: [F('Nome'), F('CPF/CNPJ'), F('Registro profissional')] },
+      { id: uid(), title: 'Serviço', items: [F('Serviço contratado'), F('Plano'), F('Forma de entrega'), F('Revisões / trocas incluídas'), F('Início do contrato'), F('Término do contrato')] },
+      { id: uid(), title: 'Valores e pagamento', items: [F('Valor do plano'), F('Forma de pagamento'), F('Vencimento')] },
+      { id: uid(), title: 'Condições', items: [C('Revisões e trocas de treino', ''), C('Prazo de resposta', ''), C('Pausas', ''), C('Cancelamento', ''), C('Reajustes', '')] },
+      { id: uid(), title: 'Observações e cláusulas adicionais', items: [C('Observações', '')] },
+    ];
+  }
   const T = (title, html) => ({ id: uid(), title, html });
+  function guidelinesTemplateOnline() {
+    return [T('Envio do treino / planilha', ''), T('Revisões e trocas de treino', ''), T('Comunicação e prazos de resposta', ''), T('Pagamentos e vencimentos', ''),
+      T('Pausas e férias', ''), T('Cancelamento e encerramento', ''), T('Reajustes', ''), T('Responsabilidades do aluno', '')];
+  }
   function guidelinesTemplate() {
     return [T('Pontualidade e duração das sessões', ''), T('Pagamentos e vencimentos', ''), T('Faltas e avisos de ausência', ''), T('Reposições', ''), T('Feriados', ''),
       T('Pausas da profissional e do aluno', ''), T('Cancelamento e encerramento', ''), T('Reajustes', ''), T('Comunicação e responsabilidades', '')];
@@ -127,7 +142,7 @@ const PC = (() => {
   /* ---------- versão congelada para assinatura ---------- */
   function canonical(c) {   // só o que o aluno vê e assina
     const S = c.schedule || {};
-    return JSON.stringify({ title: c.title, version: c.version, sections: (c.sections || []).map(s => ({ t: s.title, i: s.items.map(i => [i.type, i.label, i.value ?? '', i.text ?? '']) })),
+    return JSON.stringify({ title: c.title, version: c.version, ...(c.kind === 'online' ? { kind: 'online', online: c.online || null } : {}), sections: (c.sections || []).map(s => ({ t: s.title, i: s.items.map(i => [i.type, i.label, i.value ?? '', i.text ?? '']) })),
       schedule: { year: S.year, start: S.start, end: S.end, rules: S.rules, offs: (S.offs || []).map(o => [o.date, o.name, o.kind, !!o.discount]), lessons: S.lessons, monthly: S.monthly, plan: S.plan, fixedMonthly: S.fixedMonthly, fixedOverride: S.fixedOverride },
       guidelines: (c.guidelines || []).map(g => [g.title, sanitize(g.html)]) });
   }
@@ -137,12 +152,16 @@ const PC = (() => {
     return [...new Uint8Array(await g.digest('SHA-256', b))].map(x => x.toString(16).padStart(2, '0')).join('');
   }
   // situação efetiva (assinado com término passado vira "vencido")
-  function statusOf(c, today) { if (c.status === 'assinado' && c.schedule?.end && today && c.schedule.end < today) return 'vencido'; return c.status || 'rascunho'; }
-  function blankContract(clientId, year, sectionsTpl, guideTpl) {
-    return { id: uid(), clientId, title: `Contrato de personal ${year}`, version: 1, parentId: null, status: 'rascunho', sections: JSON.parse(JSON.stringify(sectionsTpl || contractTemplate())),
-      schedule: blankSchedule(year), guidelines: JSON.parse(JSON.stringify(guideTpl || guidelinesTemplate())), docs: [], signing: null, history: [] };
+  function statusOf(c, today) { const end = periodOf(c).end; if (c.status === 'assinado' && end && today && end < today) return 'vencido'; return c.status || 'rascunho'; }
+  function blankContract(clientId, year, sectionsTpl, guideTpl, kind = 'personal') {
+    const on = kind === 'online';
+    return { id: uid(), clientId, kind, title: on ? `Serviço online ${year}` : `Contrato de personal ${year}`, version: 1, parentId: null, status: 'rascunho', sections: JSON.parse(JSON.stringify(sectionsTpl || (on ? contractTemplateOnline() : contractTemplate()))),
+      schedule: blankSchedule(year), online: on ? { start: iso(year, 1, 1), end: '', months: 1, plan: 'Mensal', amount: null, paymentType: '', paymentMethod: '', due: '' } : null,
+      guidelines: JSON.parse(JSON.stringify(guideTpl || (on ? guidelinesTemplateOnline() : guidelinesTemplate()))), docs: [], signing: null, history: [] };
   }
+  const periodOf = c => c.kind === 'online' ? { start: c.online?.start || '', end: c.online?.end || '' } : { start: c.schedule?.start || '', end: c.schedule?.end || '' };
+  const yearOf = c => +(periodOf(c).start || '').slice(0, 4) || c.schedule?.year;
   return { DOW, DOW_S, MONTHS, STATUS, LESSON_ST, OFF_KIND, uid, iso, br, dowOf, daysIn, money, num, round2, easter, holidays, blankSchedule, ruleAt, monthLessons, monthSummary, yearSummary,
-    editLesson, contractTemplate, guidelinesTemplate, sanitize, htmlToLines, canonical, sha256, statusOf, blankContract };
+    editLesson, contractTemplate, guidelinesTemplate, contractTemplateOnline, guidelinesTemplateOnline, periodOf, yearOf, sanitize, htmlToLines, canonical, sha256, statusOf, blankContract };
 })();
 if (typeof module !== 'undefined') module.exports = { PC };

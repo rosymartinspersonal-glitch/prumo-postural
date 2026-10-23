@@ -70,3 +70,15 @@ assert.equal(PC.statusOf({ status: 'assinado', schedule: { end: '2027-12-31' } }
   }
   console.log('contratos: 6 planos de personal conferidos');
 }
+// serviços online: contrato com vigência, sem calendário de aulas
+{
+  const k = PC.blankContract('x', 2027, undefined, undefined, 'online');
+  assert.equal(k.kind, 'online'); assert(k.online && k.online.start === '2027-01-01');
+  assert(k.sections.some(s => s.items.some(i => i.label === 'Serviço contratado')), 'modelo online');
+  assert(!k.sections.some(s => s.items.some(i => i.label === 'Frequência das aulas')), 'sem campos de aula');
+  k.online.end = '2027-06-30'; assert.equal(PC.periodOf(k).end, '2027-06-30'); assert.equal(PC.yearOf(k), 2027);
+  assert.equal(PC.statusOf({ ...k, status: 'assinado' }, '2027-07-01'), 'vencido');
+  const h = PC.canonical(k); k.online.amount = 230; assert.notEqual(PC.canonical(k), h, 'vigência entra no código da versão');
+  assert.equal(PC.blankContract('x', 2027).kind, 'personal');
+  console.log('contratos: serviços online com vigência');
+}
