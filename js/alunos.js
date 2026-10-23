@@ -13,7 +13,9 @@ const AL = (() => {
   const DEADLINES = ['30 dias', '45 dias', '60 dias', '90 dias'];
   const PAY_TYPES = ['Manual', 'À vista', 'Parcelado', 'Recorrente no cartão'];
   const PAY_METHODS = ['Pix', 'Pix App MFIT', 'Cartão de crédito', 'Cartão de débito', 'Dinheiro', 'Boleto', 'Boleto App MFIT', 'Transferência'];
-  const SERVICES = ['Planilha de Treino', 'Planilha de Treino RM', 'Planilha de Treino + Dieta', 'Planilha de Treino Casal', 'Consultoria Online', 'Protocolo Alimentar – Dieta', 'Personal Presencial', 'Avaliação postural', 'Reabilitação / correção postural'];
+  const SERVICES = sortPT(['Planilha de Treino', 'Planilha de Treino RM', 'Planilha de Treino + Dieta', 'Planilha de Treino Casal', 'Consultoria Online', 'Protocolo Alimentar – Dieta', 'Personal Presencial', 'Avaliação postural', 'Reabilitação / correção postural',
+    'Plano Casal Protocolo RM – 10% Desconto', 'Plano Basic – Personal Trainer (2x/semana)', 'Plano Silver – Personal Trainer (3x/semana)', 'Plano Gold – Personal Trainer (4x/semana)', 'Plano Premium – Personal Trainer (5x/semana)']);
+  function sortPT(l) { return [...new Set(l.map(x => String(x || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })); }
 
   // tabela de valores padrão (a mesma do controle de alunos); editável em Alunos → Valores
   const opt = (group, service, label, desc, rows, recurring12 = false) => rows.map(([m, v]) => ({ id: slugify(service) + '-' + m, group, service, label, desc, months: m, plan: MONTH_PLAN[m], amount: v, paymentType: recurring12 && m === 12 ? 'Recorrente no cartão' : 'Manual' }));
@@ -199,7 +201,7 @@ const AL = (() => {
     }).filter(r => r.name.trim());
   }
 
-  return { SITUATIONS, STUDENT_STATUS, REV_STATUS, PLAN_NAMES, PLAN_MONTHS, DEADLINES, PAY_TYPES, PAY_METHODS, SERVICES, DEFAULT_CATALOG,
+  return { sortPT, SITUATIONS, STUDENT_STATUS, REV_STATUS, PLAN_NAMES, PLAN_MONTHS, DEADLINES, PAY_TYPES, PAY_METHODS, SERVICES, DEFAULT_CATALOG,
     today, days, br, addMonths, addDays, norm, parseMoney, money, moneyInput, blank, revStatus, validate, isTraining, isActive, reminders, agenda, remTitle, whenTxt,
     message, waLink, suggestRevisions, renew, stats, toCSV, fromCSV, splitCSV, toISO, firstName };
 })();
@@ -211,6 +213,8 @@ const ALUNOS_TABS = [['geral', 'Visão geral'], ['lista', 'Alunos'], ['revisoes'
 let alState = { tab: 'geral', q: '', filter: 'Ativo', ahead: 7, remTab: 'all', remQ: '', revTab: 'next' };
 
 async function alCatalog() { const c = await Store.get('settings', 'catalog'); return c?.list?.length ? c.list : AL.DEFAULT_CATALOG; }
+async function alServices() { const c = await Store.get('settings', 'services'); return AL.sortPT([...(c?.list || AL.SERVICES), ...(c ? [] : (await alCatalog()).map(x => x.service))]); }
+async function alSaveServices(list) { await Store.put('settings', { id: 'services', list: AL.sortPT(list) }); }
 async function alAll() { return (await Store.all('students')).sort((a, b) => a.name.localeCompare(b.name, 'pt-BR')); }
 async function alSave(r) { r.updatedAt = todayISO(); r.createdAt ||= todayISO(); await Store.put('students', r); return r; }
 const sitTone = s => ({ Ativo: 'ok', Pendente: 'warn', Pausado: 'na', Encerrado: 'bad' }[s] || 'na');
@@ -386,14 +390,18 @@ async function renewBox(r, after) {
 
 /* ---------- tabela de valores ---------- */
 async function alValores(body, list, t, cat) {
-  const groups = [...new Set(cat.map(c => c.group))];
-  body.innerHTML = `<p class="muted" style="margin:0">Valores usados ao escolher o serviço no cadastro (botão “Usar valor e pagamento”). Altere quando reajustar seus preços — os alunos já cadastrados não mudam.</p>
+  const groups = [...new Set(cat.map(c => c.group))], servs = await alServices();
+  body.innerHTML = `<section class="panel stack"><h2>Serviços</h2><p class="muted" style="margin:0">Lista que aparece no campo “Serviço” do cadastro, em ordem alfabética. Cadastre outros serviços aqui ou direto no cadastro do aluno (“+ Cadastrar outro serviço…”).</p>
+      <div class="row"><input class="search" id="sv-new" maxlength="120" placeholder="Nome do novo serviço" aria-label="Nome do novo serviço"><button type="button" class="btn primary" id="sv-add">Adicionar serviço</button></div>
+      <div class="plist">${servs.map((x, i) => `<div class="prow arow" style="padding:8px 12px"><span>${esc(x)}${list.some(r => r.service === x) ? ` <span class="muted" style="font-size:.82rem">· ${list.filter(r => r.service === x).length} aluno(s)</span>` : ''}</span><button type="button" class="btn small ghost danger" data-svrm="${i}" aria-label="Remover ${esc(x)} da lista">Remover</button></div>`).join('')}</div>
+      <button type="button" class="btn ghost small" id="sv-reset" style="justify-self:start">Restaurar lista original</button></section>
+    <p class="muted" style="margin:0">Valores usados ao escolher o serviço no cadastro (botão “Usar valor e pagamento”). Altere quando reajustar seus preços — os alunos já cadastrados não mudam.</p>
     <form id="vf" class="stack">${groups.map(g => `<section class="panel stack"><h2>${esc(g)}</h2><div class="tbl-wrap"><table><thead><tr><th>Serviço</th><th>Plano</th><th style="text-align:right">Valor (R$)</th><th></th></tr></thead><tbody>
       ${cat.map((c, i) => c.group !== g ? '' : `<tr><td>${esc(c.label)}<span class="ref">${esc(c.desc || '')}</span></td><td>${esc(c.plan)}${c.paymentType === 'Recorrente no cartão' ? '<span class="ref">Recorrente no cartão</span>' : ''}</td>
         <td class="v"><input class="vin" data-i="${i}" inputmode="decimal" value="${esc(AL.moneyInput(c.amount))}" aria-label="Valor de ${esc(c.label)} ${esc(c.plan)}"></td><td><button type="button" class="btn small ghost danger" data-rm="${i}" aria-label="Remover ${esc(c.label)} ${esc(c.plan)}">✕</button></td></tr>`).join('')}</tbody></table></div></section>`).join('')}
     <details class="panel"><summary><b>+ Adicionar serviço ou plano</b></summary><div class="grid-form" style="margin-top:12px">
       <label class="f">Grupo<input id="va-g" list="va-gl" placeholder="Ex.: Avaliação postural"><datalist id="va-gl">${groups.map(g => `<option value="${esc(g)}">`).join('')}</datalist></label>
-      <label class="f">Serviço (nome completo)<input id="va-s" list="va-sl"><datalist id="va-sl">${AL.SERVICES.map(s => `<option value="${esc(s)}">`).join('')}</datalist></label>
+      <label class="f">Serviço (nome completo)<input id="va-s" list="va-sl"><datalist id="va-sl">${servs.map(s => `<option value="${esc(s)}">`).join('')}</datalist></label>
       <label class="f">Nome curto<input id="va-l"></label>
       <label class="f">Plano<select id="va-p">${AL.PLAN_NAMES.map(p => `<option>${p}</option>`).join('')}</select></label>
       <label class="f">Valor (R$)<input id="va-v" inputmode="decimal" placeholder="0,00"></label>
@@ -401,10 +409,15 @@ async function alValores(body, list, t, cat) {
       <div class="row" style="align-items:flex-end"><button type="button" class="btn" id="va-add">Adicionar</button></div></div></details>
     <div class="row spread"><button type="button" class="btn ghost" id="v-reset">Restaurar valores originais</button><button class="btn primary">Salvar valores</button></div></form>`;
   const store = async l => { await Store.put('settings', { id: 'catalog', list: l }); };
+  const addServ = async () => { const n = $('#sv-new').value.trim(); if (!n) return toast('Escreva o nome do serviço'); if (servs.some(x => AL.norm(x) === AL.norm(n))) return toast('Esse serviço já está na lista'); await alSaveServices([...servs, n]); toast('Serviço adicionado'); go('alunos'); };
+  $('#sv-add').onclick = addServ; $('#sv-new').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addServ(); } };
+  $$('[data-svrm]', body).forEach(b => b.onclick = async () => { const x = servs[+b.dataset.svrm]; if (!(await confirmBox('Remover serviço da lista?', `“${x}” sai da lista do cadastro. Alunos que já usam esse serviço não mudam.`, 'Remover'))) return; await alSaveServices(servs.filter(y => y !== x)); toast('Serviço removido'); go('alunos'); });
+  $('#sv-reset').onclick = async () => { if (await confirmBox('Restaurar lista original?', 'A lista de serviços volta à original (os serviços que você cadastrou saem da lista). Alunos não mudam.', 'Restaurar')) { await Store.del('settings', 'services'); go('alunos'); } };
   $$('[data-rm]', body).forEach(b => b.onclick = async () => { const l = [...cat]; l.splice(+b.dataset.rm, 1); await store(l); toast('Removido'); go('alunos'); });
   $('#va-add').onclick = async () => {
     const s = $('#va-s').value.trim(), v = AL.parseMoney($('#va-v').value), p = $('#va-p').value;
     if (!s || v == null) return toast('Informe o serviço e o valor');
+    if (!servs.includes(s)) await alSaveServices([...servs, s]);
     const l = [...cat, { id: uid(), group: $('#va-g').value.trim() || 'Outros', service: s, label: $('#va-l').value.trim() || s, desc: '', months: AL.PLAN_MONTHS[p], plan: p, amount: v, paymentType: $('#va-t').value }];
     await store(l); toast('Adicionado'); go('alunos');
   };
@@ -491,7 +504,8 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
   const r = old ? { ...AL.blank(), ...old } : { ...AL.blank(), id: uid(), patientId: patientId || '' };
   if (!old && patientId) { const p = await Store.get('patients', patientId); if (p) { r.name = p.name; r.phone = p.contact || ''; } }
   for (const n of [1, 2, 3]) if (r[`revision${n}Done`]) { r[`revision${n}Status`] = 'Finalizado'; delete r[`revision${n}Done`]; }
-  const [cat, pts] = await Promise.all([alCatalog(), Store.all('patients')]);
+  const [cat, pts, servs] = await Promise.all([alCatalog(), Store.all('patients'), alServices()]);
+  const servOpts = cur => AL.sortPT([...servs, cur]).map(x => `<option${x === cur ? ' selected' : ''}>${esc(x)}</option>`).join('');
   const groups = [...new Set(cat.map(c => c.group))];
   const sel = cat.find(c => c.service === r.service && c.plan === r.plan);
   const D = (k, l) => `<label class="f">${l}<input type="date" id="f-${k}" value="${esc(r[k])}"></label>`;
@@ -501,7 +515,8 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
         <label class="f" style="grid-column:1/-1">Nome do aluno *<input id="f-name" value="${esc(r.name)}" autocomplete="off" placeholder="Nome completo"></label>
         <label class="f" style="grid-column:1/-1">Escolher da tabela de valores<select id="f-cat"><option value="">— Selecione um serviço e plano (opcional) —</option>${groups.map(g => `<optgroup label="${esc(g)}">${cat.filter(c => c.group === g).map(c => `<option value="${esc(c.id)}"${c === sel ? ' selected' : ''}>${esc(c.label)} — ${esc(c.plan)} — ${esc(AL.money(c.amount))}</option>`).join('')}</optgroup>`).join('')}</select></label>
         <div class="row" id="f-catbox" style="grid-column:1/-1" hidden><span class="muted" id="f-catinfo" style="flex:1"></span><button type="button" class="btn small primary" id="f-apply">Usar valor e pagamento</button></div>
-        <label class="f">Serviço *<input id="f-service" list="dl-serv" value="${esc(r.service)}" placeholder="Selecione ou digite"></label>
+        <label class="f">Serviço *<select id="f-service"><option value="">Selecione</option>${servOpts(r.service)}<option value="__new">+ Cadastrar outro serviço…</option></select></label>
+        <label class="f" id="f-newbox" hidden>Nome do novo serviço *<input id="f-service-new" maxlength="120" placeholder="Ex.: Pilates, Avaliação física…"></label>
         <label class="f">Tipo de plano *<input id="f-plan" list="dl-plan" value="${esc(r.plan)}" placeholder="Selecione ou digite"></label>
         <label class="f">Status do aluno *<select id="f-studentStatus">${opts(AL.STUDENT_STATUS, r.studentStatus)}</select></label>
         <label class="f">Telefone / WhatsApp<input id="f-phone" type="tel" value="${esc(r.phone)}" placeholder="(35) 99999-0000" maxlength="40"></label>
@@ -526,7 +541,6 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
       <section class="panel stack"><h2><span class="secn">04</span> Observações</h2><label class="f">Anotações (opcional)<textarea id="f-notes" rows="3" maxlength="3000" placeholder="Detalhes importantes sobre este acompanhamento…">${esc(r.notes)}</textarea></label></section>
       <p class="banner warn" id="f-err" hidden></p>
       <div class="row" style="justify-content:flex-end"><span class="muted" style="font-size:.85rem;margin-right:auto">Salvo somente ao confirmar · fica só neste aparelho</span><button type="button" class="btn" id="f-cancel">Cancelar</button><button class="btn primary">Salvar cadastro</button></div>
-      <datalist id="dl-serv">${[...new Set([...AL.SERVICES, ...cat.map(c => c.service)])].map(s => `<option value="${esc(s)}">`).join('')}</datalist>
       <datalist id="dl-plan">${AL.PLAN_NAMES.map(s => `<option value="${s}">`).join('')}</datalist>
       <datalist id="dl-ptype">${AL.PAY_TYPES.map(s => `<option value="${s}">`).join('')}</datalist>
       <datalist id="dl-pmeth">${AL.PAY_METHODS.map(s => `<option value="${s}">`).join('')}</datalist>
@@ -535,7 +549,9 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
   $('#f-cancel').onclick = () => old ? go('aluno', { id }) : go('alunos');
   const v = k => $('#f-' + k), cur = () => cat.find(c => c.id === v('cat').value);
   const showCat = () => { const c = cur(); $('#f-catbox').hidden = !c; if (c) $('#f-catinfo').textContent = `${c.desc || c.label} · ${AL.money(c.amount)} · ${c.paymentType}`; };
-  v('cat').onchange = () => { const c = cur(); if (c) { v('service').value = c.service; v('plan').value = c.plan; } showCat(); };
+  const setService = name => { const sel = v('service'); if (name && ![...sel.options].some(o => o.value === name)) sel.add(new Option(name, name), sel.options.length - 1); sel.value = name; $('#f-newbox').hidden = true; };
+  v('service').onchange = () => { const nw = v('service').value === '__new'; $('#f-newbox').hidden = !nw; if (nw) $('#f-service-new').focus(); };
+  v('cat').onchange = () => { const c = cur(); if (c) { setService(c.service); v('plan').value = c.plan; } showCat(); };
   showCat();
   $('#f-apply').onclick = () => { const c = cur(); if (!c) return; v('amount').value = AL.moneyInput(c.amount); v('paymentType').value = c.paymentType; if (c.paymentType === 'Recorrente no cartão') v('paymentMethod').value = 'Cartão de crédito'; toast('Valor e pagamento preenchidos'); };
   v('amount').onblur = () => { const p = AL.parseMoney(v('amount').value); if (p != null) v('amount').value = AL.moneyInput(p); };
@@ -551,13 +567,17 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
   for (const n of [1, 2, 3]) { const sync = () => { v(`revision${n}Status`).disabled = !v(`revision${n}`).value; }; v(`revision${n}`).oninput = sync; v(`revision${n}`).onchange = sync; sync(); }
   $('#af').onsubmit = async e => {
     e.preventDefault();
-    const keys = ['name', 'service', 'plan', 'studentStatus', 'phone', 'patientId', 'start', 'end', 'situation', 'deadline', 'paymentType', 'paymentMethod', 'notes', ...[1, 2, 3].flatMap(n => [`revision${n}`, `revision${n}Status`, `revision${n}Notes`])];
+    const keys = ['name', 'plan', 'studentStatus', 'phone', 'patientId', 'start', 'end', 'situation', 'deadline', 'paymentType', 'paymentMethod', 'notes', ...[1, 2, 3].flatMap(n => [`revision${n}`, `revision${n}Status`, `revision${n}Notes`])];
     const nx = { ...r }; for (const k of keys) nx[k] = String(v(k).value ?? '').trim();
     for (const n of [1, 2, 3]) if (!nx[`revision${n}`]) nx[`revision${n}Status`] = '';
+    const newServ = v('service').value === '__new';
+    nx.service = newServ ? $('#f-service-new').value.trim() : v('service').value;
+    if (newServ && !nx.service) { $('#f-err').textContent = 'Escreva o nome do novo serviço.'; $('#f-err').hidden = false; $('#f-service-new').focus(); return; }
     nx.amount = AL.parseMoney(v('amount').value) ?? (v('amount').value.trim() ? v('amount').value : ''); nx.paid = v('paid').checked;
     const err = AL.validate(nx);
     if (err) { $('#f-err').textContent = err; $('#f-err').hidden = false; $('#f-err').scrollIntoView({ block: 'center' }); return; }
-    await alSave(nx); toast('Cadastro salvo'); go('aluno', { id: nx.id });
+    if (nx.service && !servs.includes(nx.service)) await alSaveServices([...servs, nx.service]);
+    await alSave(nx); toast(newServ ? 'Cadastro salvo e serviço adicionado à lista' : 'Cadastro salvo'); go('aluno', { id: nx.id });
   };
   if (!old) v('name').focus();
 };
