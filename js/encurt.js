@@ -6,9 +6,9 @@
 const REF_ART = (() => {
   const ink = 'var(--ink)', acc = 'var(--accent)', mu = 'var(--muted)';
   const S = (vb, inner) => `<svg viewBox="${vb}" width="100%" height="100%" aria-hidden="true" fill="none" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
-  const body = d => `<g stroke="${ink}" stroke-width="4" stroke-opacity=".85">${d}</g>`;
+  const body = d => `<path d="${d}" stroke="${ink}" stroke-width="4" stroke-opacity=".85"/>`;
   const head = (x, y, r = 8) => `<circle cx="${x}" cy="${y}" r="${r}" stroke="${ink}" stroke-width="3.5" stroke-opacity=".85"/>`;
-  const guide = d => `<g stroke="${acc}" stroke-width="2" stroke-dasharray="5 4">${d}</g>`;
+  const guide = d => `<path d="${d}" stroke="${acc}" stroke-width="2" stroke-dasharray="5 4"/>`;
   const arc = d => `<path d="${d}" stroke="${acc}" stroke-width="2.4"/>`;
   const floor = (y, w = 160) => `<line x1="4" x2="${w - 4}" y1="${y}" y2="${y}" stroke="${mu}" stroke-width="2"/>`;
   const flip = (w, svg) => svg.replace(/(<svg[^>]*>)([\s\S]*)(<\/svg>)/, `$1<g transform="translate(${w} 0) scale(-1 1)">$2</g>$3`);
