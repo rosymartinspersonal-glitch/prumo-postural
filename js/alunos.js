@@ -27,10 +27,10 @@ const AL = (() => {
     ...opt('Planos para casal', 'Plano Casal Protocolo RM – 10% Desconto', 'Casal Protocolo RM (10% desconto)', 'Planilha de treino MFIT, com 10% de desconto.', [[1, '180.00']]),
     ...opt('Planos para casal', 'Planilha de Treino Casal', 'Treino Casal', 'Planilha de treino MFIT.', [[1, '280.00'], [3, '690.00'], [6, '1200.00'], [12, '229.00']], true),
     ...opt('Protocolo alimentar / dieta', 'Protocolo Alimentar – Dieta', 'Protocolo Alimentar – Dieta', 'Planejamento alimentar pelo WEB DIET.', [[1, '230.00'], [3, '500.00'], [6, '900.00'], [12, '189.90']], true),
-    ...opt('Personal trainer presencial', 'Plano Basic – Personal Trainer (2x/semana)', 'Personal Basic · 2x/semana', 'Musculação 2 vezes por semana.', [[1, '701.25']]),
-    ...opt('Personal trainer presencial', 'Plano Silver – Personal Trainer (3x/semana)', 'Personal Silver · 3x/semana', 'Musculação 3 vezes por semana.', [[1, '1062.50']]),
-    ...opt('Personal trainer presencial', 'Plano Gold – Personal Trainer (4x/semana)', 'Personal Gold · 4x/semana', 'Musculação 4 vezes por semana.', [[1, '1423.75']]),
-    ...opt('Personal trainer presencial', 'Plano Premium – Personal Trainer (5x/semana)', 'Personal Premium · 5x/semana', 'Musculação 5 vezes por semana.', [[1, '1777.92']]),
+    ...opt('Personal trainer presencial', 'Plano Basic – Personal Trainer (2x/semana)', 'Personal Basic · 2x/semana', '2 aulas presenciais por semana. Valor mensal do acompanhamento (tabela 2027).', [[1, '729.58']]),
+    ...opt('Personal trainer presencial', 'Plano Silver – Personal Trainer (3x/semana)', 'Personal Silver · 3x/semana', '3 aulas presenciais por semana. Valor mensal do acompanhamento (tabela 2027).', [[1, '1062.50']]),
+    ...opt('Personal trainer presencial', 'Plano Gold – Personal Trainer (4x/semana)', 'Personal Gold · 4x/semana', '4 aulas presenciais por semana. Valor mensal do acompanhamento (tabela 2027).', [[1, '1430.83']]),
+    ...opt('Personal trainer presencial', 'Plano Premium – Personal Trainer (5x/semana)', 'Personal Premium · 5x/semana', '5 aulas presenciais por semana. Valor mensal do acompanhamento (tabela 2027).', [[1, '1785.00']]),
   ];
 
   // datas sempre "AAAA-MM-DD", no fuso de Brasília
@@ -212,7 +212,16 @@ if (typeof module !== 'undefined') module.exports = { AL };
 const ALUNOS_TABS = [['geral', 'Visão geral'], ['lista', 'Alunos'], ['revisoes', 'Revisões'], ['lembretes', 'Lembretes'], ['valores', 'Valores'], ['exportar', 'Exportar']];
 let alState = { tab: 'geral', q: '', filter: 'Ativo', ahead: 7, remTab: 'all', remQ: '', revTab: 'next' };
 
-async function alCatalog() { const c = await Store.get('settings', 'catalog'); return c?.list?.length ? c.list : AL.DEFAULT_CATALOG; }
+// reajuste 2027 do personal presencial: atualiza também uma tabela já salva no aparelho (só os valores antigos)
+const AL_PERSONAL_2027 = { '701.25': '729.58', '1423.75': '1430.83', '1777.92': '1785.00' };
+async function alCatalog() {
+  const c = await Store.get('settings', 'catalog'); if (!c?.list?.length) return AL.DEFAULT_CATALOG;
+  if ((c.v || 0) < 2) {
+    for (const it of c.list) { if (it.group === 'Personal trainer presencial' && AL_PERSONAL_2027[it.amount]) { it.amount = AL_PERSONAL_2027[it.amount]; const d = AL.DEFAULT_CATALOG.find(x => x.id === it.id); if (d) it.desc = d.desc; } }
+    c.v = 2; await Store.put('settings', c);
+  }
+  return c.list;
+}
 async function alServices() { const c = await Store.get('settings', 'services'); return AL.sortPT([...(c?.list || AL.SERVICES), ...(c ? [] : (await alCatalog()).map(x => x.service))]); }
 async function alSaveServices(list) { await Store.put('settings', { id: 'services', list: AL.sortPT(list) }); }
 const PLAN_DEFAULT = [['Mensal', 1], ['Bimestral', 2], ['Trimestral', 3], ['Semestral', 6], ['Anual', 12]];
@@ -431,7 +440,7 @@ async function alValores(body, list, t, cat) {
       <label class="f">Pagamento<select id="va-t">${AL.PAY_TYPES.map(p => `<option>${p}</option>`).join('')}</select></label>
       <div class="row" style="align-items:flex-end"><button type="button" class="btn" id="va-add">Adicionar</button></div></div></details>
     <div class="row spread"><button type="button" class="btn ghost" id="v-reset">Restaurar valores originais</button><button class="btn primary">Salvar valores</button></div></form>`;
-  const store = async l => { await Store.put('settings', { id: 'catalog', list: l }); };
+  const store = async l => { await Store.put('settings', { id: 'catalog', list: l, v: 2 }); };
   const addServ = async () => { const n = $('#sv-new').value.trim(); if (!n) return toast('Escreva o nome do serviço'); if (servs.some(x => AL.norm(x) === AL.norm(n))) return toast('Esse serviço já está na lista'); await alSaveServices([...servs, n]); toast('Serviço adicionado'); go('alunos'); };
   const addPlan = async () => { const n = $('#pl-new').value.trim(), m = Math.max(0, Math.round(+$('#pl-m').value || 0)); if (!n) return toast('Escreva o nome do tipo de plano'); if (plans.some(x => AL.norm(x.name) === AL.norm(n))) return toast('Esse tipo de plano já está na lista'); await alSavePlans([...plans, { name: n, months: m }]); toast('Tipo de plano adicionado'); go('alunos'); };
   $('#pl-add').onclick = addPlan; $('#pl-new').onkeydown = e => { if (e.key === 'Enter') { e.preventDefault(); addPlan(); } };
