@@ -28,7 +28,7 @@ navegador (IndexedDB). Não há servidor nem conta.
 ## Recursos
 
 - **Marcação**: IA (MediaPipe Pose e Face, código aberto), posição-modelo para ajuste, manual ponto a ponto, marcadores verdes, lupa e zoom, régua de calibração para medidas em cm.
-- **Foto**: câmera ou galeria, rotação e recorte, remoção de fundo, máscara no rosto.
+- **Foto**: editor que padroniza a foto sem distorcer. Endireita automaticamente pelo ambiente (parede, batente, simetrógrafo) ou por uma linha de referência, gira 90°, enquadra no corpo e completa o formato 3:4 com margem. Corrige a luz e confere resolução, iluminação, nitidez, inclinação e corpo inteiro no quadro. A foto original fica guardada: cada ajuste parte dela, sem perda de qualidade, e os pontos já marcados acompanham. Também há remoção de fundo e máscara no rosto.
 - **Resultados**: situação de cada medida (normal, atenção, alterado), interpretação em texto e principais achados. Inclui exercícios sugeridos e imagens anotadas em JPEG.
 - **Relatório PDF**: logo, banner com cor e frase, dados do profissional e do paciente, IMC, fotos anotadas, interpretação, exercícios, conclusão e assinatura.
 - **Evolução**: comparação antes × depois e gráfico de cada medida ao longo do tempo.
@@ -52,13 +52,14 @@ js/core.js        utilidades, armazenamento local, geometria
 js/views.js       vistas, pontos anatômicos, medidas, tipos de avaliação, interpretação
 js/detect.js      IA (pose, rosto, segmentação) e marcadores verdes
 js/draw.js        linhas e ângulos sobre a foto, dados de exemplo
+js/photoedit.js   editor de fotos (endireitar, enquadrar, luz, checagens)
 js/content.js     exercícios, dicas e ajuda
 js/screens.js     telas
 js/video.js       análise dinâmica em vídeo
 js/pdf.js         relatório PDF
 js/main.js        inicialização
 sw.js             modo offline
-tests/            testes das fórmulas (node tests/medidas.test.js)
+tests/            testes das fórmulas e do editor de fotos (node tests/medidas.test.js; node tests/foto.test.js)
 replica/          engenharia reversa e benchmark contra o APECS
 ```
 

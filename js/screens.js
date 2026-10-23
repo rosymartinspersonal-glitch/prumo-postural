@@ -234,7 +234,7 @@ SCREENS.assessment = async ({ id }) => {
     return `<div class="slot"><div class="thumb">${vd?.img ? `<canvas data-cv="${s}" aria-label="${esc(V.label)}"></canvas>` : `<span class="plumb"></span><span class="eyebrow" style="position:relative;background:var(--sunken);padding:4px 6px">${esc(V.short)}</span>`}</div>
       <div class="meta"><h3>${esc(V.label)}</h3>${val ? `<span class="row" style="gap:6px"><b class="num">${fmtM(val)}</b><span class="st ${val.status}">${STATUS[val.status]}</span></span>` : !vd?.img ? '<span class="st na">Sem foto</span>' : ready ? `<span class="st ok">${Object.keys(vd.points).length} pontos</span>` : '<span class="st warn">Pontos pendentes</span>'}</div>
       <div class="acts"><label class="btn small${vd?.img ? '' : ' primary'}" style="cursor:pointer">${vd?.img ? 'Trocar foto' : 'Tirar ou escolher foto'}<input type="file" accept="image/*" capture="environment" data-file="${s}" hidden></label>
-        ${vd?.img ? `<button class="btn small" data-mark="${s}">Marcar pontos</button>` : ''}${vd?.img || K.dynamic ? `<button class="btn small ghost danger" data-rm="${s}" aria-label="Remover ${esc(V.label)}">Remover</button>` : ''}</div></div>`;
+        ${vd?.img ? `<button class="btn small" data-edit="${s}">Ajustar foto</button><button class="btn small" data-mark="${s}">Marcar pontos</button>` : ''}${vd?.img || K.dynamic ? `<button class="btn small ghost danger" data-rm="${s}" aria-label="Remover ${esc(V.label)}">Remover</button>` : ''}</div></div>`;
   };
   const protos = S.protocols || [];
   app.innerHTML = `${back(p.name)}
@@ -262,62 +262,26 @@ SCREENS.assessment = async ({ id }) => {
   $$('[data-file]').forEach(inp => inp.onchange = async () => {
     const f = inp.files[0]; if (!f) return;
     await save();
-    const url = await straighten(f); if (!url) return;
     const s = inp.dataset.file, old = a.views[s] || {};
-    a.views[s] = { ...old, img: url, imgOrig: null, points: {}, mask: false, scale: null };
+    const r = await openPhotoEditor({ blob: f, V: getView(s, old.rom ? old : undefined), title: getView(s, old.rom ? old : undefined).label }); if (!r) return;
+    // a foto original fica guardada à parte, para reajustes futuros sem perda de qualidade
+    await Store.put('media', { id: `src:${a.id}:${s}`, kind: 'file', blob: f, name: f.name, type: f.type, createdAt: todayISO() });
+    a.views[s] = { ...old, img: r.img, edit: { e: r.e, g: r.g }, imgOrig: null, points: {}, mask: false, scale: null };
     await Store.put('assessments', a);
     go('mark', { id, slot: s, auto: true });
   });
   $$('[data-mark]').forEach(b => b.onclick = async () => { await save(); go('mark', { id, slot: b.dataset.mark }); });
+  $$('[data-edit]').forEach(b => b.onclick = async () => { await save(); if (await reEditPhoto(a, b.dataset.edit)) go('assessment', { id }); });
   $$('[data-rm]').forEach(b => b.onclick = async () => {
     const s = b.dataset.rm;
     if (!(await confirmBox('Remover?', `A foto e os pontos de “${getView(s, a.views[s]).label}” serão apagados.`, 'Remover'))) return;
     if (K.dynamic) { delete a.views[s]; a.order = (a.order || []).filter(x => x !== s); } else delete a.views[s];
+    await Store.del('media', `src:${a.id}:${s}`);
     await Store.put('assessments', a); go('assessment', { id });
   });
   $('#see').onclick = async () => { await save(); go('results', { id }); };
 };
 
-/* Ajuste de rotação e recorte da foto antes de marcar */
-function straighten(file) {
-  return new Promise(async res => {
-    const url = URL.createObjectURL(file);
-    let img; try { img = await loadImg(url); } catch { toast('Não foi possível abrir essa imagem. Tente JPG ou PNG.'); return res(null); }
-    const maxS = 1600, k = Math.min(1, maxS / Math.max(img.naturalWidth, img.naturalHeight));
-    const W = Math.round(img.naturalWidth * k), H = Math.round(img.naturalHeight * k);
-    let crop = { t: 0, b: 0, l: 0, r: 0 };
-    const m = document.createElement('div'); m.className = 'modal';
-    m.innerHTML = `<div class="panel" role="dialog" aria-modal="true" style="max-width:560px;max-height:95vh;overflow:auto">
-      <h2>Ajustar a foto</h2><p class="muted" style="margin:0;font-size:.9rem">Gire até que as linhas fiquem paralelas a uma referência vertical da foto (batente, canto da parede). Recorte as bordas se quiser.</p>
-      <canvas id="rot-cv" style="width:100%;max-height:50vh;object-fit:contain;background:#0B0E1A;border-radius:8px"></canvas>
-      <label class="f">Rotação: <span class="num" id="rot-v">0,0°</span><input id="rot" type="range" min="-15" max="15" step="0.5" value="0"></label>
-      <div class="grid-form" style="grid-template-columns:repeat(2,minmax(0,1fr))">${['t:Cortar em cima', 'b:Cortar embaixo', 'l:Cortar à esquerda', 'r:Cortar à direita'].map(x => { const [c, l] = x.split(':'); return `<label class="f">${l}<input type="range" min="0" max="40" value="0" data-crop="${c}"></label>`; }).join('')}</div>
-      <div class="row" style="justify-content:flex-end"><button class="btn" data-x="0">Cancelar</button><button class="btn primary" data-x="1">Usar esta foto</button></div></div>`;
-    document.body.appendChild(m);
-    const cv = $('#rot-cv', m), ctx = cv.getContext('2d'); cv.width = W; cv.height = H;
-    const draw = (deg, grid = true) => {
-      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#0B0E1A'; ctx.fillRect(0, 0, W, H);
-      ctx.translate(W / 2, H / 2); ctx.rotate(deg * Math.PI / 180); ctx.drawImage(img, -W / 2, -H / 2, W, H); ctx.setTransform(1, 0, 0, 1, 0, 0);
-      if (grid) {
-        ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = Math.max(1, W / 500); for (let i = 1; i < 8; i++) { ctx.beginPath(); ctx.moveTo(W * i / 8, 0); ctx.lineTo(W * i / 8, H); ctx.stroke(); }
-        ctx.fillStyle = 'rgba(11,14,26,.65)'; ctx.fillRect(0, 0, W, H * crop.t / 100); ctx.fillRect(0, H * (1 - crop.b / 100), W, H * crop.b / 100); ctx.fillRect(0, 0, W * crop.l / 100, H); ctx.fillRect(W * (1 - crop.r / 100), 0, W * crop.r / 100, H);
-      }
-    };
-    draw(0);
-    const r = $('#rot', m); r.oninput = () => { $('#rot-v', m).textContent = nf(+r.value) + '°'; draw(+r.value); };
-    $$('[data-crop]', m).forEach(i => i.oninput = () => { crop[i.dataset.crop] = +i.value; draw(+r.value); });
-    m.addEventListener('click', e => {
-      const b = e.target.closest('[data-x]'); if (!b) return;
-      if (b.dataset.x === '1') {
-        draw(+r.value, false);
-        const x0 = Math.round(W * crop.l / 100), y0 = Math.round(H * crop.t / 100), cw = Math.round(W * (1 - (crop.l + crop.r) / 100)), ch = Math.round(H * (1 - (crop.t + crop.b) / 100));
-        const out = document.createElement('canvas'); out.width = cw; out.height = ch; out.getContext('2d').drawImage(cv, x0, y0, cw, ch, 0, 0, cw, ch);
-        res(out.toDataURL('image/jpeg', 0.88));
-      } else res(null);
-      m.remove(); URL.revokeObjectURL(url); imgCache.delete(url);
-    });
-  });
-}
 
 /* ---------- marcação de pontos ---------- */
 SCREENS.mark = async ({ id, slot, auto }) => {
@@ -344,7 +308,7 @@ SCREENS.mark = async ({ id, slot, auto }) => {
       </div>
       <aside class="panel stack">
         <div class="row" style="gap:6px">${V.detect ? '<button class="btn small primary" id="auto">Detectar com IA</button>' : ''}<button class="btn small" id="tpl">Posicionar modelo</button><button class="btn small" id="green">Usar marcadores verdes${lockTag('green')}</button></div>
-        <div class="row" style="gap:6px"><button class="btn small" id="bg">${vd.imgOrig ? 'Restaurar fundo' : 'Remover fundo' + lockTag('bg')}</button><button class="btn small" id="clear">Limpar pontos</button></div>
+        <div class="row" style="gap:6px"><button class="btn small" id="bg">${vd.imgOrig ? 'Restaurar fundo' : 'Remover fundo' + lockTag('bg')}</button><button class="btn small" id="clear">Limpar pontos</button><button class="btn small" id="reedit">Ajustar foto</button></div>
         ${canMask ? `<label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="mask" ${vd.mask ? 'checked' : ''}> Ocultar o rosto${lockTag('mask')}</label>` : ''}
         <label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="cal" ${vd.scale?.on ? 'checked' : ''}> Calibrar com régua (medidas em cm)</label>
         <label class="f" id="cal-f" ${vd.scale?.on ? '' : 'hidden'}>Comprimento real da régua (${cmUnit()})<input id="cal-cm" type="number" inputmode="decimal" min="0.5" step="0.1" value="${+cmOut(vd.scale?.cm || 100).toFixed(1)}"></label>
@@ -429,6 +393,7 @@ SCREENS.mark = async ({ id, slot, auto }) => {
   }
   if ($('#auto')) $('#auto').onclick = runAuto;
   $('#tpl').onclick = () => { for (const [k] of V.points) delete vd.points[k]; Object.assign(vd.points, tplPoints(V, IW, IH)); persist(); draw(); msg('Pontos na posição-modelo. Arraste cada um até o ponto anatômico.'); };
+  $('#reedit').onclick = async () => { clearTimeout(saveT); await Store.put('assessments', a); if (await reEditPhoto(a, slot)) go('mark', { id, slot }); };
   $('#clear').onclick = () => { for (const [k] of V.points) delete vd.points[k]; st.sel = firstMissing(); persist(); draw(); msg('Pontos apagados. Selecione cada ponto na lista e toque na foto (modo manual).'); };
   $('#green').onclick = () => {
     if (!Billing.can(plan, 'green')) return go('plans', { need: 'green' });
