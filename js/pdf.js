@@ -100,6 +100,8 @@ async function exportPDF(a, p) {
       for (const { k } of st) { const c = seriesCanvas(vv.series[k], vv.times, pdfSafe(VID_ANGLES[k].label)); need(62); doc.addImage(c.toDataURL('image/jpeg', 0.9), 'JPEG', M, y, W - 2 * M, (W - 2 * M) / 3); y += (W - 2 * M) / 3 + 4; }
     }
     if (vv.keyframes?.length) { h2('Quadros-chave'); need(80); let x = M; for (const f of vv.keyframes) { const im2 = await loadImg(f.img); let iw = 80, ih = iw * im2.naturalHeight / im2.naturalWidth; if (ih > 100) { ih = 100; iw = ih * im2.naturalWidth / im2.naturalHeight; } doc.addImage(f.img, 'JPEG', x, y, iw, ih); doc.setFontSize(7.5); doc.setTextColor(...MUT); doc.text(pdfSafe(f.label), x, y + ih + 4, { maxWidth: iw }); x += iw + 8; } y += 110; }
+  } else if (kindOf(a) === 'encurt' && typeof encPDF === 'function') {
+    await encPDF({ doc, a, S, M, W, Hh, h2, para, need: h => need(h), SC, INK, MUT, getY: () => y, setY: v => { y = v; } });
   } else {
     const slots = slotsOf(a).filter(s => viewReady(a.views[s], s));
     const cls = classifyPosture(a);

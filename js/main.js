@@ -6,6 +6,7 @@
   }
   if (TEAMRM_CONFIG.showPlans) { const l = document.getElementById('nav-plans-label'); if (l) l.textContent = 'Planos'; }
   await Store.open();
+  try { await encLoadRanges(); } catch (e) { }
   try { await loadCustomEx(); } catch (e) { }
   const S = await getSettings();
   // migração para a identidade TEAMRM (quem usava as cores antigas padrão)
