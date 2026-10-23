@@ -3,8 +3,8 @@
 'use strict';
 
 /* ---------- desenhos de referência (SVG, cores do tema) ---------- */
-// desenho estático (posição final) de cada vista; a versão animada vem de FIG.svgAnim
-const REF_ART = Object.fromEntries(FIG.keys().map(k => [k, FIG.svgStatic(k)]));
+// desenho estático (posição final) de cada vista; a versão animada vem de POSE_FIG.svgAnim
+const REF_ART = Object.fromEntries(POSE_FIG.keys().map(k => [k, POSE_FIG.svgStatic(k)]));
 
 /* ---------- vistas dos testes ---------- */
 (() => {
@@ -225,11 +225,11 @@ KINDS.encurt = {
 }
 
 /* desenho de referência dentro do cartão da vista (sem foto) */
-function refArtFor(slot) { return FIG.has(slot) ? FIG.svgAnim(slot) : ''; }
+function refArtFor(slot) { return POSE_FIG.has(slot) ? POSE_FIG.svgAnim(slot) : ''; }
 
 /* cartão no Início */
 if (typeof ART !== 'undefined' && typeof HOME_CARDS !== 'undefined') {
-  ART.encurt = FIG.svgAnim('encSlrD');
+  ART.encurt = POSE_FIG.svgAnim('encSlrD');
   const i = HOME_CARDS.findIndex(([k]) => k === 'adm');
   HOME_CARDS.splice(i < 0 ? HOME_CARDS.length : i, 0, ['encurt', 'Encurtamentos']);
 }

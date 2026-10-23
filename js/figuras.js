@@ -3,7 +3,7 @@
    Cada cena vai da posição relaxada até a posição do teste, segura e volta, em laço (como um GIF). */
 'use strict';
 
-const FIG = (() => {
+const POSE_FIG = (() => {
   const SKIN = '#E3AC80', SKIN2 = '#C98F66', HAIR = '#2B1B12', CLOTH = '#141414', EDGE = '#6B6B6B', ACC = 'var(--accent)', MU = 'var(--muted)';
   const r1 = v => Math.round(v * 10) / 10;
   const dir = a => { const t = a * Math.PI / 180; return { x: Math.sin(t), y: Math.cos(t) }; };   // 0 = para baixo, 90 = para a frente, 180 = para cima
@@ -137,12 +137,12 @@ if (typeof requestAnimationFrame === 'function' && typeof document !== 'undefine
     if (ts - last > 40 && !document.hidden) {
       last = ts;
       for (const el of document.querySelectorAll('svg.figanim')) {
-        const k = el.dataset.fig, t = reduce ? 1 : FIG.phase(ts, FIG.isCalm(k));
-        if (el._t === t) continue; el._t = t; el.innerHTML = FIG.inner(k, t);
+        const k = el.dataset.fig, t = reduce ? 1 : POSE_FIG.phase(ts, POSE_FIG.isCalm(k));
+        if (el._t === t) continue; el._t = t; el.innerHTML = POSE_FIG.inner(k, t);
       }
     }
     requestAnimationFrame(tick);
   };
   requestAnimationFrame(tick);
 }
-if (typeof module !== 'undefined') module.exports = { FIG };
+if (typeof module !== 'undefined') module.exports = { POSE_FIG };
