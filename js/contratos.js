@@ -221,8 +221,17 @@ function pcApplyPlan(k, plan) {
 // preenche só o que já é conhecido (nome do aluno, profissional); o resto fica em branco
 function pcPrefill(k, cl, P) {
   const set = (label, v) => { if (!v) return; for (const s of k.sections) for (const i of s.items) if (i.type === 'field' && i.label === label && !i.value) i.value = v; };
-  set('Nome completo', cl?.name); set('CPF', cl?.cpf); set('Telefone', cl?.phone); set('E-mail', cl?.email); set('Endereço', cl?.address);
+  set('Nome completo', cl?.name); set('Telefone', cl?.phone);
   set('Nome', P?.name); set('Registro profissional', P?.reg);
+}
+
+// uma vez por aparelho: tira CPF, e-mail e endereço dos contratos em rascunho e dos modelos salvos
+// (versões congeladas e assinadas não mudam)
+async function pcMigrateFields() {
+  const S = await getSettings(); if (S.pcFieldsV2) return;
+  for (const k of await Store.all('pcContracts')) if ((k.status || 'rascunho') === 'rascunho' && PC.stripFields(k.sections)) await Store.put('pcContracts', k);
+  for (const t of await Store.all('pcTemplates')) if (t.type === 'contrato' && PC.stripFields(t.data)) await Store.put('pcTemplates', t);
+  S.pcFieldsV2 = true; await Store.put('settings', S);
 }
 
 /* ================= cliente ================= */
@@ -236,7 +245,7 @@ SCREENS.pcCliente = async ({ id, category }) => {
   const t = pcToday(), F = (k, l, type = 'text', ph = '') => `<label class="f"${['name', 'address'].includes(k) ? ' style="grid-column:1/-1"' : ''}>${l}<input id="cf-${k}" type="${type}" value="${esc(c[k] || '')}" placeholder="${esc(ph)}"></label>`;
   app.innerHTML = `${back(PC_CATS[c.category])}<div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">${esc(PC_CATS[c.category])}</span><h1>${old ? esc(c.name) : 'Novo aluno'}</h1></div>${old ? '<button class="btn danger" id="cf-del">Excluir cliente</button>' : ''}</div>
     <section class="panel stack"><h2>Dados do aluno</h2><div class="grid-form">
-      <label class="f" style="grid-column:1/-1">Tipo de aluno<select id="cf-category">${Object.entries(PC_CATS).map(([v, l]) => `<option value="${v}"${v === c.category ? ' selected' : ''}>${l}</option>`).join('')}</select></label>${F('name', 'Nome completo *')}${F('cpf', 'CPF', 'text', '000.000.000-00')}${F('phone', 'Telefone', 'tel')}${F('email', 'E-mail', 'email')}${F('address', 'Endereço')}
+      <label class="f" style="grid-column:1/-1">Tipo de aluno<select id="cf-category">${Object.entries(PC_CATS).map(([v, l]) => `<option value="${v}"${v === c.category ? ' selected' : ''}>${l}</option>`).join('')}</select></label>${F('name', 'Nome completo *')}${F('phone', 'Telefone', 'tel')}
       <label class="f">Aluno vinculado (Alunos online)<select id="cf-studentId"><option value="">Nenhum</option>${students.map(s => `<option value="${s.id}"${s.id === c.studentId ? ' selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>
       <label class="f" style="grid-column:1/-1">Observações<textarea id="cf-notes" rows="2">${esc(c.notes || '')}</textarea></label></div>
       <div class="row" style="justify-content:flex-end"><button class="btn primary" id="cf-save">Salvar</button></div></section>
@@ -244,9 +253,10 @@ SCREENS.pcCliente = async ({ id, category }) => {
       ${ks.length ? `<div class="plist">${ks.map(k => { const s = PC.statusOf(k, t); return `<button class="prow" data-k="${k.id}" style="grid-template-columns:1fr auto"><span><b>${esc(k.title)}</b> <span class="muted">· v${k.version}</span><br><span class="muted" style="font-size:.85rem">${esc(PC.br(PC.periodOf(k).start))} a ${esc(PC.br(PC.periodOf(k).end) || 'sem término')}</span></span><span class="st ${pcStTone(s)}">${esc(PC.STATUS[s])}</span></button>`; }).join('')}</div>` : '<p class="muted" style="margin:0">Nenhum contrato.</p>'}</section>
     <section class="panel stack"><div class="row spread"><h2>Documentos do aluno</h2><label class="btn small" style="cursor:pointer">+ Anexar<input type="file" id="cf-up" accept="application/pdf,image/*" hidden multiple></label></div>${pcDocsList(c.docs)}</section>` : ''}`;
   bindBack('contratos', { tab: c.category });
-  const inputs = $$('#cf-category,#cf-name,#cf-cpf,#cf-phone,#cf-email,#cf-address,#cf-notes,#cf-studentId'); inputs.forEach(i => i.oninput = i.onchange = () => pcSetDirty(true));
+  const inputs = $$('#cf-category,#cf-name,#cf-phone,#cf-notes,#cf-studentId'); inputs.forEach(i => i.oninput = i.onchange = () => pcSetDirty(true));
   $('#cf-save').onclick = async () => {
-    for (const k of ['category', 'name', 'cpf', 'phone', 'email', 'address', 'notes', 'studentId']) c[k] = $('#cf-' + k).value.trim();
+    for (const k of ['category', 'name', 'phone', 'notes', 'studentId']) c[k] = $('#cf-' + k).value.trim();
+    delete c.cpf; delete c.email; delete c.address;   // campos retirados do cadastro
     if (old && pcCat(old) !== c.category && ks.some(k => pcKind(k) !== c.category)) toast('Os contratos já criados continuam do tipo original; os novos seguem o novo tipo.', 4500);
     if (!c.name) { toast('Informe o nome do aluno'); return $('#cf-name').focus(); }
     c.updatedAt = todayISO(); await Store.put('pcClients', c); pcSetDirty(false); PCX.draftClient = null; toast('Cliente salvo'); go('pcCliente', { id: c.id });
