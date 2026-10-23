@@ -228,10 +228,10 @@ function pcPrefill(k, cl, P) {
 // uma vez por aparelho: tira CPF, e-mail e endereço dos contratos em rascunho e dos modelos salvos
 // (versões congeladas e assinadas não mudam)
 async function pcMigrateFields() {
-  const S = await getSettings(); if (S.pcFieldsV3) return;
+  const S = await getSettings(); if (S.pcFieldsV4) return;
   for (const k of await Store.all('pcContracts')) if ((k.status || 'rascunho') === 'rascunho' && PC.stripFields(k.sections)) await Store.put('pcContracts', k);
   for (const t of await Store.all('pcTemplates')) if (t.type === 'contrato' && PC.stripFields(t.data)) await Store.put('pcTemplates', t);
-  S.pcFieldsV3 = true; await Store.put('settings', S);
+  S.pcFieldsV4 = true; await Store.put('settings', S);
 }
 
 /* ================= cliente ================= */

@@ -85,9 +85,11 @@ const AL = (() => {
   const isActive = r => r.studentStatus === 'Ativo' && r.situation === 'Ativo';
 
   // lembretes: revisões não finalizadas e término do plano até "ahead" dias (atrasados incluídos)
-  function reminders(list, t, ahead = 7, includeDone = false) {
+  // extra = true: inclui também início do plano e pagamento pendente (tela Lembretes)
+  function reminders(list, t, ahead = 7, includeDone = false, extra = false) {
     const out = [];
     for (const r of list) {
+      if (extra && r.studentStatus === 'Ativo' && (r.situation === 'Pendente' || (r.situation === 'Ativo' && parseMoney(r.amount) != null && !r.paid))) { const ref = r.start || r.end || t; out.push({ id: `${r.id}:pay`, kind: 'payment', record: r, date: ref, days: Math.min(0, days(ref, t) || 0) }); }
       if (!isActive(r)) continue;
       for (const n of [1, 2, 3]) {
         const d = r[`revision${n}`], k = days(d, t);
@@ -95,6 +97,10 @@ const AL = (() => {
       }
       const k = days(r.end, t);
       if (r.end && Number.isFinite(k) && k <= ahead) out.push({ id: `${r.id}:end`, kind: 'expiry', record: r, date: r.end, days: k });
+      if (extra) {
+        const ks = days(r.start, t);
+        if (r.start && Number.isFinite(ks) && ks >= 0 && ks <= ahead) out.push({ id: `${r.id}:start`, kind: 'start', record: r, date: r.start, days: ks });
+      }
     }
     return out.sort((a, b) => a.date.localeCompare(b.date) || a.record.name.localeCompare(b.record.name, 'pt-BR') || a.id.localeCompare(b.id));
   }
@@ -102,13 +108,15 @@ const AL = (() => {
   function agenda(list) {
     return list.filter(r => r.studentStatus === 'Ativo').flatMap(r => [1, 2, 3].filter(n => r[`revision${n}`]).map(n => ({ record: r, n, date: r[`revision${n}`], status: revStatus(r, n), notes: r[`revision${n}Notes`] || '' }))).sort((a, b) => a.date.localeCompare(b.date));
   }
-  const remTitle = x => x.kind === 'expiry' ? 'Vencimento do plano' : isTraining(x.record.service) ? 'Troca de treino' : 'Revisão do acompanhamento';
+  const remTitle = x => x.kind === 'expiry' ? 'Término do plano' : x.kind === 'start' ? 'Início do plano' : x.kind === 'payment' ? 'Pacote com pagamento pendente' : isTraining(x.record.service) ? 'Troca de treino' : 'Revisão do acompanhamento';
   const whenTxt = k => k === 0 ? 'Hoje' : k < 0 ? `${-k} ${k === -1 ? 'dia' : 'dias'} em atraso` : `Em ${k} ${k === 1 ? 'dia' : 'dias'}`;
   function firstName(n) { return String(n || '').trim().split(/\s+/)[0] || ''; }
   // aluno de personal presencial: marcação manual no cadastro ou, se não marcado, pelo serviço / tipo de plano
   function isPersonal(r) { if (r?.personal === true || r?.personal === false) return r.personal; return /personal/i.test(r?.service || '') || PERSONAL_PLANS.some(p => norm(p.name) === norm(r?.plan || '')); }
   function message(x, sign = 'TEAMRM — Rosileni Martins') {
     const r = x.record, d = br(x.date), hi = `Olá, ${firstName(r.name)}! Tudo bem?`;
+    if (x.kind === 'start') return `${hi}\n\nSeu plano ${r.plan || ''} de ${r.service || ''} começa ${x.days === 0 ? 'hoje' : 'em ' + d}. Estou te esperando para darmos o primeiro passo!\n\nConte comigo!\n${sign}`;
+    if (x.kind === 'payment') return `${hi}\n\nPassando para lembrar do pagamento do seu pacote ${r.plan || ''} de ${r.service || ''}${parseMoney(r.amount) != null ? ` (${money(r.amount)})` : ''}. Pix no dia do vencimento ou dinheiro 1 dia antes.\n\nQualquer dúvida, me chame!\n${sign}`;
     if (x.kind === 'expiry') {
       if (String(r.expiryMessage || '').trim() && (!r.expiryMessageEnd || r.expiryMessageEnd === r.end)) return r.expiryMessage;
       const w = x.days < 0 ? `terminou em ${d}` : x.days === 0 ? `vence hoje (${d})` : `vence em ${d}`;
@@ -372,26 +380,42 @@ function revNote(r, n, after) {
 /* ---------- lembretes e mensagens ---------- */
 function remRow(x) {
   return `<div class="prow arow"><span style="min-width:0"><b>${esc(x.record.name)}</b><br><span class="muted" style="font-size:.86rem">${esc(AL.remTitle(x))}${x.revision ? ' ' + x.revision : ''} · ${esc(x.record.service)} · ${esc(AL.br(x.date))}</span></span>
-    <span class="row" style="gap:6px;justify-content:flex-end"><span class="st ${dueTone(x.days)}">${esc(AL.whenTxt(x.days))}</span><button class="btn small primary" data-msg="${esc(x.id)}">Mensagem</button>${x.kind === 'revision' ? `<button class="btn small" data-rn="${esc(x.id)}">Situação</button>` : `<button class="btn small" data-renew="${x.record.id}">Renovar</button>`}</span></div>`;
+    <span class="row" style="gap:6px;justify-content:flex-end">${x.kind === 'payment' ? `<span class="st bad">${esc(x.record.situation === 'Pendente' ? 'Pacote pendente' : 'A receber')}${AL.parseMoney(x.record.amount) != null ? ' · ' + esc(AL.money(x.record.amount)) : ''}</span>` : x.kind === 'revision' ? `<span class="st ${AL.revStatus(x.record, x.revision) === 'Finalizado' ? 'ok' : dueTone(x.days)}">${esc(AL.revStatus(x.record, x.revision) === 'Finalizado' ? 'Concluído' : (AL.revStatus(x.record, x.revision) || 'A prescrever') + ' · ' + AL.whenTxt(x.days))}</span>` : `<span class="st ${x.kind === 'start' ? 'ok' : dueTone(x.days)}">${esc(x.kind === 'expiry' && x.days < 0 ? `Vencido há ${-x.days} ${x.days === -1 ? 'dia' : 'dias'}` : AL.whenTxt(x.days))}</span>`}<button class="btn small primary" data-msg="${esc(x.id)}">Mensagem</button>${x.kind === 'revision' ? `<button class="btn small" data-rn="${esc(x.id)}">Situação</button>` : x.kind === 'payment' ? `<button class="btn small" data-paid="${x.record.id}">Marcar pago</button>` : x.kind === 'start' ? `<button class="btn small" data-cad="${x.record.id}">Cadastro</button>` : `<button class="btn small" data-renew="${x.record.id}">Renovar</button>`}</span></div>`;
 }
 function bindRem(root, list, t, after) {
-  const all = AL.reminders(list, t, 400, true), find = id => all.find(x => x.id === id);
+  const all = AL.reminders(list, t, 400, true, true), find = id => all.find(x => x.id === id);
+  $$('[data-paid]', root).forEach(b => b.onclick = async () => { const r = list.find(y => y.id === b.dataset.paid); if (!r) return; r.paid = true; if (r.situation === 'Pendente') r.situation = 'Ativo'; await alSave(r); toast('Pagamento registrado'); if (after) after(); else go('alunos'); });
+  $$('[data-cad]', root).forEach(b => b.onclick = () => go('aluno', { id: b.dataset.cad }));
   $$('[data-msg]', root).forEach(b => b.onclick = () => { const x = find(b.dataset.msg); if (x) msgBox(x, after); });
   $$('[data-rn]', root).forEach(b => b.onclick = () => { const x = find(b.dataset.rn); if (x) revNote(x.record, x.revision, after); });
   $$('[data-renew]', root).forEach(b => b.onclick = () => { const r = list.find(y => y.id === b.dataset.renew); if (r) renewBox(r, after); });
 }
 async function alLembretes(body, list, t) {
-  const h = AL.reminders(list, t, alState.ahead), fin = AL.reminders(list, t, alState.ahead, true).filter(x => x.kind === 'revision' && AL.revStatus(x.record, x.revision) === 'Finalizado');
-  const T = [['all', 'Todos', h.length], ['revision', 'Troca / revisão', h.filter(x => x.kind === 'revision').length], ['expiry', 'Vencimentos', h.filter(x => x.kind === 'expiry').length], ['late', 'Em atraso', h.filter(x => x.days < 0).length], ['finalized', 'Finalizados', fin.length]];
-  body.innerHTML = `<div class="row spread"><p class="muted" style="margin:0;flex:1;min-width:220px">Trocas de treino e renovações no momento certo. Toque em <b>Mensagem</b> para copiar ou enviar pelo WhatsApp.</p>
-      <label class="f" style="min-width:170px">Mostrar datas dos próximos<select id="ahead">${[3, 7, 15, 30].map(d => `<option value="${d}"${d === alState.ahead ? ' selected' : ''}>${d} dias</option>`).join('')}</select></label></div>
-    <div class="chips">${T.map(([k, l, n]) => `<button class="chip" data-rt="${k}" aria-pressed="${alState.remTab === k}">${esc(l)} <span class="num">${n}</span></button>`).join('')}</div>
+  const ahead = alState.ahead, h = AL.reminders(list, t, ahead, false, true), all = AL.reminders(list, t, Math.max(ahead, 7), true, true);
+  const open = x => x.kind !== 'revision' || AL.revStatus(x.record, x.revision) !== 'Finalizado';
+  const toPrescribe = x => x.kind === 'revision' && ['', 'A prescrever'].includes(AL.revStatus(x.record, x.revision) || '');
+  // cada aba: [chave, rótulo, filtro sobre a lista]
+  const T = [
+    ['all', 'Todos', h],
+    ['revision', 'Treino', h.filter(x => x.kind === 'revision')],
+    ['start', 'Início', h.filter(x => x.kind === 'start')],
+    ['expiry', 'Término', h.filter(x => x.kind === 'expiry' && x.days >= 0)],
+    ['payment', 'Pacotes pendentes', h.filter(x => x.kind === 'payment')],
+    ['week', 'Próximos 7 dias', all.filter(x => open(x) && x.kind !== 'payment' && x.days >= 0 && x.days <= 7)],
+    ['prescribe', 'A prescrever', h.filter(toPrescribe)],
+    ['expired', 'Vencidos', h.filter(x => x.kind === 'expiry' && x.days < 0)],
+    ['late', 'Em atraso', h.filter(x => x.kind === 'revision' && x.days < 0)],
+    ['finalized', 'Concluídos', all.filter(x => x.kind === 'revision' && !open(x))],
+  ];
+  if (!T.some(([k]) => k === alState.remTab)) alState.remTab = 'all';
+  body.innerHTML = `<div class="row spread"><p class="muted" style="margin:0;flex:1;min-width:220px">Treinos, início e término dos planos, pacotes pendentes e vencimentos no momento certo. Toque em <b>Mensagem</b> para copiar ou enviar pelo WhatsApp.</p>
+      <label class="f" style="min-width:170px">Mostrar datas dos próximos<select id="ahead">${[3, 7, 15, 30].map(d => `<option value="${d}"${d === ahead ? ' selected' : ''}>${d} dias</option>`).join('')}</select></label></div>
+    <div class="chips">${T.map(([k, l, L]) => `<button class="chip" data-rt="${k}" aria-pressed="${alState.remTab === k}">${esc(l)} <span class="num">${L.length}</span></button>`).join('')}</div>
     <input class="search" id="rq" type="search" placeholder="Buscar aluno…" aria-label="Buscar aluno nos lembretes" value="${esc(alState.remQ)}"><div id="rl"></div>`;
   const draw = () => {
-    const k = alState.remTab, q = AL.norm(alState.remQ);
-    const l = (k === 'finalized' ? fin : h).filter(x => (k === 'finalized' || k === 'all' || k === x.kind || (k === 'late' && x.days < 0)) && AL.norm(`${x.record.name} ${x.record.service}`).includes(q));
-    $('#rl').innerHTML = l.length ? `<div class="plist">${l.map(remRow).join('')}</div>` : '<div class="panel empty muted">Nenhum lembrete nesta seleção.</div>';
-    bindRem($('#rl'), list, t);
+    const q = AL.norm(alState.remQ), L = (T.find(([k]) => k === alState.remTab) || T[0])[2].filter(x => AL.norm(`${x.record.name} ${x.record.service}`).includes(q));
+    $('#rl').innerHTML = L.length ? `<div class="plist">${L.map(remRow).join('')}</div>` : '<div class="panel empty muted">Nenhum lembrete nesta seleção.</div>';
+    bindRem($('#rl'), list, t, () => go('alunos'));
   };
   $('#ahead').onchange = e => { alState.ahead = +e.target.value; go('alunos'); };
   $$('[data-rt]').forEach(b => b.onclick = () => { alState.remTab = b.dataset.rt; $$('[data-rt]').forEach(x => x.setAttribute('aria-pressed', x === b)); draw(); });
