@@ -18,8 +18,8 @@ const REF_ART = (() => {
   const front = standFront(`<g fill="${ink}" stroke="none"><circle cx="57" cy="15" r="1.4"/><circle cx="63" cy="15" r="1.4"/></g>` + guide('M30 34 H90 M34 82 H86'));
   const back = standFront(guide('M60 6 V164') + guide('M30 34 H90 M34 82 H86'));
   // perfil olhando para a direita (viewBox 120×170)
-  const side = (arms = 'M58 36 L60 62 L62 86') => S('0 0 120 170',
-    head(62, 16) + body(`M60 24 L58 34 M58 34 C54 50 52 62 56 82 M56 82 L58 122 L58 160 L72 162 ${arms}`) + guide('M58 4 V166'));
+  const side = (arms = 'M58 36 L66 60 L68 84') => S('0 0 120 170',
+    `<path d="M58 166 V2" stroke="${acc}" stroke-width="1.6" stroke-dasharray="4 5" stroke-opacity=".7"/>` + head(62, 16) + body(`M60 24 L58 34 M58 34 C54 50 52 62 56 82 M56 82 L58 122 L58 160 L72 162 ${arms}`));
   const latD = side(), latE = flip(120, latD);
   const armsFwd = side('M58 36 L104 36');
   // sentado, uma perna estendida e a outra dobrada, alcançando o pé (viewBox 160×100)
