@@ -55,3 +55,16 @@ console.log('encurtamentos: todos os testes passaram');
   assert(one[0].rows.every(r => r.diff == null));
 }
 console.log('encurtamentos: faixas e direito × esquerdo conferidos');
+// escolha da perna pela posição (IA): elevação da perna — o tornozelo mais alto é o da perna elevada
+{
+  const c3 = { console, Math, Number, String, JSON }; vm.createContext(c3);
+  vm.runInContext('var SCREENS={results:async()=>{},settings:async()=>{}};' + src('core.js') + '\n' + src('views.js') + '\n' + src('figuras.js') + '\n' + src('encurt.js') + '\n' + src('encurt-extra.js') + ';this.VIEWS=VIEWS;', c3);
+  const L = Array.from({ length: 33 }, () => ({ x: 500, y: 800 }));
+  L[11] = L[12] = { x: 200, y: 800 }; L[23] = L[24] = { x: 500, y: 800 };
+  L[25] = { x: 700, y: 805 }; L[27] = { x: 900, y: 810 };          // perna esquerda no chão
+  L[26] = { x: 560, y: 500 }; L[28] = { x: 610, y: 200 };          // perna direita elevada
+  const P = c3.VIEWS.encSlrE.derive(L, 1000, 1000, []);
+  assert.equal(P.maleolo.y, 200, 'perna elevada escolhida mesmo na vista esquerda'); assert.equal(P.apoio.y, 810);
+  const m = c3.VIEWS.encSlrE.measures(P).find(x => x.key === 'encSlr'); assert(m.v > 70 && m.v < 90, 'SLR ' + m.v);
+}
+console.log('encurtamentos: escolha da perna pela IA conferida');

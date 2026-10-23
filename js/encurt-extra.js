@@ -161,3 +161,52 @@ async function encPDF(o) {
   }
   sync();
 }
+
+/* ---------- IA mais robusta deitado e sentado ----------
+   1) a pose é procurada na foto original e girada 90° para os dois lados, e fica a de maior confiança
+   2) a perna testada é escolhida pela posição (perna elevada, perna estendida, perna de apoio), não só pelo lado que a IA diz */
+const ENC_LEGS = { D: { sh: 12, hip: 24, knee: 26, ank: 28, foot: 32, idx: 20, ear: 8 }, E: { sh: 11, hip: 23, knee: 25, ank: 27, foot: 31, idx: 19, ear: 7 } };
+const encKneeExt = (L, I) => interior(L[I.hip], L[I.knee], L[I.ank]);   // 180 = estendido
+function encPick(L, vis, by) { const a = ENC_LEGS.D, b = ENC_LEGS.E; return by(a, b) ? [a, b] : [b, a]; }
+{
+  const mid2 = (p, q) => ({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 });
+  for (const s of ['D', 'E']) {
+    // elevação da perna: a perna elevada é a que tem o tornozelo mais alto na foto
+    VIEWS['encSlr' + s].derive = (L, w, h, vis) => { const [up, down] = encPick(L, vis, (a, b) => L[a.ank].y < L[b.ank].y); const sh = (vis?.[12] || 0) >= (vis?.[11] || 0) ? L[12] : L[11]; return { acromio: sh, trocanter: mid2(L[23], L[24]), joelho: L[up.knee], maleolo: L[up.ank], apoio: L[down.ank] }; };
+    // sentar e alcançar unilateral: a perna testada é a mais estendida
+    VIEWS['encSentUni' + s].derive = (L, w, h, vis) => { const [x] = encPick(L, vis, (a, b) => encKneeExt(L, a) >= encKneeExt(L, b)); const hand = (vis?.[20] || 0) >= (vis?.[19] || 0) ? L[20] : L[19]; return { acromio: L[x.sh], trocanter: L[x.hip], joelho: L[x.knee], maleolo: L[x.ank], pe: L[x.foot], mao: hand }; };
+    // sentar e alcançar com as duas pernas: lado mais visível; mão que chega mais longe
+    VIEWS['encSentBil' + s].derive = (L, w, h, vis) => { const [x] = encPick(L, vis, (a, b) => (vis?.[a.knee] || 0) + (vis?.[a.ank] || 0) >= (vis?.[b.knee] || 0) + (vis?.[b.ank] || 0)); const far = (p, q) => Math.abs(p.x - L[x.hip].x) >= Math.abs(q.x - L[x.hip].x) ? p : q; return { acromio: L[x.sh], trocanter: L[x.hip], joelho: L[x.knee], maleolo: L[x.ank], pe: L[x.foot], mao: far(L[19], L[20]) }; };
+    // Ely de bruços: perna mais dobrada (calcanhar mais perto do glúteo)
+    VIEWS['encProno' + s].derive = (L, w, h, vis) => { const [x] = encPick(L, vis, (a, b) => encKneeExt(L, a) <= encKneeExt(L, b)); return { acromio: L[x.sh], trocanter: L[x.hip], joelho: L[x.knee], maleolo: L[x.ank] }; };
+    // apoio unipodal: perna de apoio é a do tornozelo mais baixo
+    for (const k of ['encUnip', 'encCeg']) { const V = VIEWS[k + s], base = V.derive; V.derive = (L, w, h, vis) => { const P = base(L, w, h, vis); const sup = L[27].y > L[28].y ? ENC_LEGS.E : ENC_LEGS.D; return { ...P, joelho: L[sup.knee], torn: L[sup.ank] }; }; }
+  }
+}
+const ENC_ROT = new Set(['encSlrD', 'encSlrE', 'encPronoD', 'encPronoE', 'encSentUniD', 'encSentUniE', 'encSentBilD', 'encSentBilE'].map(k => VIEWS[k]));
+async function encPoseBest(img) {
+  const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height, keyIdx = [11, 12, 23, 24, 25, 26, 27, 28];
+  let best = null, lastErr = null;
+  for (const r of [0, 90, -90]) {
+    let src = img;
+    if (r) { const c = document.createElement('canvas'); c.width = h; c.height = w; const x = c.getContext('2d'); if (r === 90) { x.translate(h, 0); x.rotate(Math.PI / 2); } else { x.translate(0, w); x.rotate(-Math.PI / 2); } x.drawImage(img, 0, 0); src = c; }
+    try {
+      const { L, V } = await detectPoseRaw(src);
+      const back = r === 0 ? L : L.map(p => r === 90 ? { x: p.y, y: h - p.x } : { x: w - p.y, y: p.x });
+      const score = keyIdx.reduce((s, i) => s + (V[i] || 0), 0) / keyIdx.length;
+      if (!best || score > best.score) best = { L: back, V, score, r };
+      if (r === 0 && score > 0.85) break;
+    } catch (e) { lastErr = e; }
+  }
+  if (!best) throw lastErr || new Error('Nenhuma pessoa encontrada na foto');
+  return best;
+}
+if (typeof detectPoints === 'function') {
+  const base = detectPoints;
+  detectPoints = async (V, img) => {
+    if (!ENC_ROT.has(V)) return base(V, img);
+    const w = img.naturalWidth, h = img.naturalHeight, B = await encPoseBest(img), P = V.derive(B.L, w, h, B.V), out = {};
+    for (const [k] of V.points) if (P[k]) out[k] = { x: Math.max(0, Math.min(w, P[k].x)), y: Math.max(0, Math.min(h, P[k].y)) };
+    return out;
+  };
+}
