@@ -1,6 +1,6 @@
 // TEAMRM - Posture & Correction — service worker: funciona offline depois da primeira visita.
-const VERSION = 'teamrm-v46';
-const SHELL = ['./', 'index.html', 'js/config.js', 'js/core.js', 'js/views.js', 'js/detect.js', 'js/draw.js', 'js/photoedit.js', 'js/exercises.js', 'js/anim.js', 'js/content.js', 'js/screens.js', 'js/screens-ex.js', 'js/home.js', 'js/figuras.js', 'js/encurt.js', 'js/encurt-extra.js', 'js/billing.js', 'js/legal.js', 'js/video.js', 'js/bio.js', 'js/alunos.js', 'js/contratos-core.js', 'js/contratos.js', 'js/contratos-pdf.js', 'js/pdf.js', 'js/lock.js', 'js/main.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'assets/logo.png', 'assets/logo-mark.png', 'assets/favicon.png', 'assets/apple-touch-icon.png'];
+const VERSION = 'teamrm-v47';
+const SHELL = ['./', 'index.html', 'js/config.js', 'js/core.js', 'js/views.js', 'js/detect.js', 'js/draw.js', 'js/photoedit.js', 'js/exercises.js', 'js/anim.js', 'js/content.js', 'js/screens.js', 'js/screens-ex.js', 'js/home.js', 'js/figuras.js', 'js/encurt.js', 'js/encurt-extra.js', 'js/billing.js', 'js/legal.js', 'js/video.js', 'js/bio.js', 'js/alunos.js', 'js/contratos-core.js', 'js/contratos.js', 'js/contratos-pdf.js', 'js/pdf.js', 'js/lock.js', 'js/assinar.js', 'js/main.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'assets/logo.png', 'assets/logo-mark.png', 'assets/favicon.png', 'assets/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));

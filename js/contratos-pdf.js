@@ -34,7 +34,10 @@ async function pcPDF(k, cl, part) {
       doc.setFontSize(9); doc.setTextColor(...INK); let x = M + 2; r.forEach((c, i) => { doc.text(T(String(c)), i ? x + widths[i] - 4 : x, y, i ? { align: 'right' } : undefined); x += widths[i]; }); y += rowH; doc.setFont('helvetica', 'normal');
     }); y += 3;
   };
-  const signLines = () => { need(40); y += 16; const w = (W - 2 * M - 16) / 2; doc.setDrawColor(...INK); doc.line(M, y, M + w, y); doc.line(M + w + 16, y, W - M, y); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(T(cl?.name || 'Aluno(a)'), M + w / 2, y + 4.5, { align: 'center' }); doc.text(T(P.name || 'Profissional'), M + w + 16 + w / 2, y + 4.5, { align: 'center' }); doc.setFontSize(8); doc.setTextColor(...MUT); doc.text('Contratante', M + w / 2, y + 8.5, { align: 'center' }); doc.text(T('Contratada' + (P.reg ? ' · ' + P.reg : '')), M + w + 16 + w / 2, y + 8.5, { align: 'center' }); y += 14; };
+  // assinaturas desenhadas: aluno (link) e profissional (Ajustes), só na versão assinada e no comprovante
+  const LK = k.signing?.link?.status === 'assinado' ? k.signing.link : null, withSig = (part === 'assinado' || part === 'comprovante') && LK;
+  const sigImg = (src, cx, base, maxW = 62, maxH = 20) => { if (!src) return; try { const p = doc.getImageProperties(src), r = p.width / p.height; let w2 = maxW, h2 = w2 / r; if (h2 > maxH) { h2 = maxH; w2 = h2 * r; } doc.addImage(src, 'PNG', cx - w2 / 2, base - h2 + 2.5, w2, h2); } catch (e) { } };
+  const signLines = () => { need(withSig ? 48 : 40); y += withSig ? 24 : 16; const w = (W - 2 * M - 16) / 2; if (withSig) { sigImg(LK.png, M + w / 2, y); sigImg(P.signature, M + w + 16 + w / 2, y); } doc.setDrawColor(...INK); doc.line(M, y, M + w, y); doc.line(M + w + 16, y, W - M, y); doc.setFontSize(9); doc.setTextColor(...INK); doc.text(T(cl?.name || 'Aluno(a)'), M + w / 2, y + 4.5, { align: 'center' }); doc.text(T(P.name || 'Profissional'), M + w + 16 + w / 2, y + 4.5, { align: 'center' }); doc.setFontSize(8); doc.setTextColor(...MUT); doc.text('Contratante', M + w / 2, y + 8.5, { align: 'center' }); doc.text(T('Contratada' + (P.reg ? ' · ' + P.reg : '')), M + w + 16 + w / 2, y + 8.5, { align: 'center' }); y += 14; };
 
   const partContrato = () => { newPage(on ? 'Contrato de prestação de serviços online' : 'Contrato de prestação de serviços de personal trainer'); h2(k.title); for (const s of k.sections) { h3(s.title); for (const i of s.items) { if (i.type === 'field') field(i.label, i.value); else { para(i.label, 9.5, INK, 0, true); y -= 0.6; para(i.text || '', 9.5); } } y += 2; } signLines(); };
   const partCal = () => {
@@ -90,9 +93,14 @@ async function pcPDF(k, cl, part) {
     field('Versão congelada em', sg.frozenAt ? new Date(sg.frozenAt).toLocaleString('pt-BR') : '—'); field('Código da versão (SHA-256)', sg.hash || '—');
     field('Provedor / método', sg.provider || 'pendente');
     for (const s of sg.signers || []) field(`Assinatura — ${s.role}`, `${s.name}${s.at ? ' em ' + new Date(s.at).toLocaleString('pt-BR') : ''}`);
-    field('PDF assinado', sg.signedFile ? `${sg.signedFile.name} · SHA-256 ${sg.signedFile.hash}` : '—');
+    if (LK) {
+      field('Assinatura do aluno', `${LK.name} · CPF ${LK.cpf}`); field('Data e hora (servidor)', new Date(LK.signedAt).toLocaleString('pt-BR'));
+      field('IP de origem', LK.ip || 'não informado'); field('Aparelho / navegador', LK.ua || '—');
+      field('Link enviado', `${new Date(LK.createdAt).toLocaleString('pt-BR')}${LK.sentAt ? ' · aberto o WhatsApp em ' + new Date(LK.sentAt).toLocaleString('pt-BR') : ''}`);
+      need(30); doc.setFontSize(8.5); doc.setTextColor(...MUT); doc.text('Assinatura desenhada pelo aluno:', M, y); y += 3; sigImg(LK.png, M + 35, y + 20, 70, 20); y += 26;
+    } else field('PDF assinado', sg.signedFile ? `${sg.signedFile.name} · SHA-256 ${sg.signedFile.hash}` : '—');
     field('Registrado no app em', sg.signedAt ? new Date(sg.signedAt).toLocaleString('pt-BR') : '—');
-    y += 3; para('A validade jurídica e a verificação de identidade dos signatários são as do provedor de assinatura indicado; o PDF assinado e a trilha de auditoria do provedor ficam anexados a este contrato. O código SHA-256 permite conferir que o conteúdo da versão não foi alterado.', 8.5, MUT);
+    y += 3; para(LK ? 'Assinatura eletrônica simples (Lei 14.063/2020 e MP 2.200-2/2001, art. 10, § 2º): o aluno abriu o link individual enviado pela profissional, leu esta versão do documento, informou nome e CPF, desenhou a assinatura e confirmou a concordância. Data e hora são do servidor; o código SHA-256 comprova que o conteúdo assinado é o desta versão.' : 'A validade jurídica e a verificação de identidade dos signatários são as do provedor de assinatura indicado; o PDF assinado e a trilha de auditoria do provedor ficam anexados a este contrato. O código SHA-256 permite conferir que o conteúdo da versão não foi alterado.', 8.5, MUT);
     if ((k.history || []).length) { h3('Histórico'); for (const h of k.history) para(`${new Date(h.at).toLocaleString('pt-BR')} — ${h.event}`, 8.5); }
   };
 

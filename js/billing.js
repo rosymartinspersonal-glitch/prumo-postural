@@ -60,7 +60,7 @@ const Billing = (() => {
     return j;
   }
   return {
-    enabled, enforce, plan, can, minPlan, user, subscription, planOf,
+    enabled, enforce, plan, can, minPlan, user, subscription, planOf, client: sb,
     cached: () => readCache(),
     clearCache: () => { try { localStorage.removeItem(CACHE_KEY); } catch (e) { } },
     async signUp(email, password) { const { error } = await (await sb()).auth.signUp({ email, password, options: { emailRedirectTo: cfg.appUrl } }); if (error) throw error; },

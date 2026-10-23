@@ -1,6 +1,9 @@
 /* TEAMRM - Posture & Correction — inicialização. */
 'use strict';
 (async () => {
+  // link de assinatura de contrato enviado ao aluno: página própria, sem o restante do app
+  const signTok = /^#assinar=([0-9a-f]{40,})$/i.exec(location.hash)?.[1];
+  if (signTok) { try { await Store.open(); applyPalette(await getSettings()); } catch (e) { } return PCSign.page(signTok); }
   for (const [id, name] of [['go-home', 'home'], ['nav-home', 'home'], ['nav-patients', 'patients'], ['nav-alunos', 'alunos'], ['nav-contratos', 'contratos'], ['nav-results', 'results_db'], ['nav-settings', 'settings'], ['nav-plans', 'plans']]) {
     const b = document.getElementById(id); if (b) b.onclick = () => go(name);
   }
