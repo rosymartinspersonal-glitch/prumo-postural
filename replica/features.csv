@@ -51,7 +51,7 @@ Acompanhamento de medidas repetidas,evolução,should,yes,yes,gráfico de evolu�
 Dados só no aparelho,privacidade,must,yes,yes,
 Celular e tablet,plataforma,must,yes,yes,PWA
 Interface multilíngue,interface,could,yes,skip,não implementado: app de uso na clínica só em português; fazer se for atender pacientes em outro idioma
-Assinaturas e planos pagos,negócio,should,yes,partial,Supabase + Stripe escritos; ativar após criar as contas (ver replica/backend.md)
+Assinaturas e planos pagos,negócio,should,yes,skip,"cobrança em espera por decisão (uso particular na clínica); Supabase + Stripe prontos no código, ver docs/CONFIGURAR-PAGAMENTOS.md"
 Validação científica publicada (35+ artigos),credibilidade,skip,yes,skip,pertence ao original; não é função de software
 Cadastro de pacientes com histórico,pacientes,should,no,yes,a mais que o original
 Comparação antes × depois,evolução,should,no,yes,a mais que o original
@@ -73,3 +73,11 @@ Rastreador de treinos,conteúdo,could,yes,yes,"histórico, semana, sequência"
 Vídeos explicativos dos movimentos,conteúdo,should,yes,yes,animação da ADM + vídeo próprio ou link
 Análise de vídeo por movimento com repetições,vídeo,should,no,yes,"a mais: % do normal, regularidade, compensações, confiança"
 Tema claro e escuro,interface,could,no,yes,a mais que o original
+Avaliação de bioimpedância,composição corporal,should,no,yes,a mais que o original
+Senha do app,privacidade,should,no,yes,a mais que o original
+Testes de encurtamento muscular (18 vistas),encurtamento,should,no,yes,"a mais: sentar e alcançar, Ely, elevação da perna, Trendelenburg, unipodal, braços à frente"
+Flexão anterior - vista anterior e laterais D/E,adams,should,no,yes,a mais: o original tem uma lateral
+Personagens animados demonstrando cada posição,captura,should,no,yes,"a mais: desenho animado com top e short pretos, sem foto de pessoa"
+"Controle de alunos (planos, revisões, pagamentos)",alunos,should,no,yes,a mais que o original
+Lembretes com mensagem pronta e WhatsApp,alunos,should,no,yes,a mais que o original
+Exportar e importar planilha de alunos (CSV),alunos,could,no,yes,a mais que o original

@@ -4,7 +4,7 @@
    Substitui exPicto / exAnim / romDemoSVG de exercises.js (mesmos nomes).                         */
 'use strict';
 
-const FIG = { skin: '#E2B190', shirt: '#E79813', shorts: '#232323', hi: '#E5484D', line: 'var(--surface)' };
+const FIG = { skin: '#E3AC80', shirt: '#161616', shorts: '#161616', hi: '#E5484D', line: '#6B6B6B' };   // top e short pretos
 
 /* ---------- poses extras (perfil, olhando para a direita, caixa 100×100) ---------- */
 const poseMod = (base, ch) => Object.assign(JSON.parse(JSON.stringify(POSES[base])), ch);

@@ -240,6 +240,11 @@ function pickKind(pid) {
 }
 
 /* ---------- fotos de uma avaliação ---------- */
+// desenho animado da vista: movimento de ADM (com goniômetro) ou personagem da posição
+function slotArt(s, vd) {
+  if (vd?.rom?.id && typeof ROM_DEMO !== 'undefined' && ROM_DEMO[vd.rom.id]) return romDemoSVG(vd.rom.id, 600);
+  return typeof refArtFor === 'function' ? refArtFor(s) : '';
+}
 SCREENS.assessment = async ({ id }) => {
   const a = await Store.get('assessments', id); if (!a) return go('patients');
   const p = await Store.get('patients', a.patientId), S = await getSettings(), K = KINDS[kindOf(a)];
@@ -247,7 +252,7 @@ SCREENS.assessment = async ({ id }) => {
   const slotCard = s => {
     const vd = a.views[s], V = getView(s, vd), ready = viewReady(vd, s);
     const val = K.dynamic && ready ? measuresFor(s, vd)[0] : null;
-    return `<div class="slot"><div class="thumb">${vd?.img ? `<canvas data-cv="${s}" aria-label="${esc(V.label)}"></canvas>` : (typeof refArtFor === 'function' && refArtFor(s) ? `<span class="refart" title="Posição de referência">${refArtFor(s)}</span><span class="eyebrow refart-tag">Posição · ${esc(V.short)}</span>` : `<span class="plumb"></span><span class="eyebrow" style="position:relative;background:var(--sunken);padding:4px 6px">${esc(V.short)}</span>`)}</div>
+    return `<div class="slot"><div class="thumb">${vd?.img ? `<canvas data-cv="${s}" aria-label="${esc(V.label)}"></canvas>` : (slotArt(s, vd) ? `<span class="refart" title="Posição de referência">${slotArt(s, vd)}</span><span class="eyebrow refart-tag">Posição · ${esc(V.short)}</span>` : `<span class="plumb"></span><span class="eyebrow" style="position:relative;background:var(--sunken);padding:4px 6px">${esc(V.short)}</span>`)}</div>
       <div class="meta"><h3>${esc(V.label)}</h3>${val ? `<span class="row" style="gap:6px"><b class="num">${fmtM(val)}</b><span class="st ${val.status}">${STATUS[val.status]}</span></span>` : !vd?.img ? '<span class="st na">Sem foto</span>' : ready ? `<span class="st ok">${Object.keys(vd.points).length} pontos</span>` : '<span class="st warn">Pontos pendentes</span>'}</div>
       <div class="acts"><label class="btn small${vd?.img ? '' : ' primary'}" style="cursor:pointer">📷 ${vd?.img ? 'Nova foto' : 'Tirar foto'}<input type="file" accept="image/*" capture="environment" data-file="${s}" hidden></label><label class="btn small" style="cursor:pointer">🖼️ Galeria<input type="file" accept="image/*" data-file="${s}" hidden></label>
         ${vd?.img ? `<button class="btn small" data-edit="${s}">Ajustar foto</button><button class="btn small" data-mark="${s}">Marcar pontos</button>` : ''}${vd?.img || K.dynamic ? `<button class="btn small ghost danger" data-rm="${s}" aria-label="Remover ${esc(V.label)}">Remover</button>` : ''}</div></div>`;
@@ -260,6 +265,7 @@ SCREENS.assessment = async ({ id }) => {
     ${K.dynamic ? `<div class="panel stack"><div class="row" style="align-items:flex-end">
         <label class="f" style="flex:1;min-width:220px">Movimento<select id="rom-sel">${ROM_PRESETS.map(r => `<option value="${r.id}">${esc(r.label)}${r.normal ? ' · ' + r.normal + '°' : ''} (${esc(r.plane)})</option>`).join('')}</select></label>
         <button class="btn primary" id="rom-add">Adicionar movimento</button></div>
+        <div class="row" style="align-items:center;gap:14px"><div id="rom-demo" class="romprev"></div><p class="muted" id="rom-demo-t" style="margin:0;flex:1;min-width:160px;font-size:.88rem"></p></div>
         ${protos.length ? `<div class="row" style="align-items:flex-end"><label class="f" style="flex:1;min-width:220px">Protocolo próprio<select id="proto-sel">${protos.map(r => `<option value="${r.id}">${esc(r.name)} (${r.items.length})</option>`).join('')}</select></label><button class="btn" id="proto-add">Aplicar protocolo</button></div>` : '<p class="muted" style="margin:0;font-size:.85rem">Crie protocolos próprios de ADM em Configurações → Protocolos de amplitude.</p>'}
       </div>` : ''}
     ${slots.length ? `<div class="views">${slots.map(slotCard).join('')}</div>` : K.dynamic ? '<div class="panel empty muted">Nenhum movimento adicionado.</div>' : ''}
@@ -272,6 +278,8 @@ SCREENS.assessment = async ({ id }) => {
   $('#a-notes').onchange = save; $('#a-date').onchange = save; $$('[data-com]').forEach(i => i.onchange = save);
   const addRom = def => { const s = uid(); a.views[s] = { rom: { ...def }, img: '', points: {}, mask: false, scale: null, comment: '' }; (a.order ||= []).push(s); };
   if (K.dynamic) {
+    const showDemo = () => { const r = ROM_PRESETS.find(x => x.id === $('#rom-sel').value); $('#rom-demo').innerHTML = r && ROM_DEMO[r.id] ? romDemoSVG(r.id, 150) : ''; $('#rom-demo-t').textContent = r ? (ROM_DEMO[r.id] ? `Demonstração: ${r.label}${r.normal ? ' até ' + r.normal + '°' : ''} · plano ${r.plane.toLowerCase()}.` : 'Ângulo livre: escolha os pontos na foto.') : ''; };
+    $('#rom-sel').onchange = showDemo; showDemo();
     $('#rom-add').onclick = async () => { await save(); addRom(ROM_PRESETS.find(r => r.id === $('#rom-sel').value)); await Store.put('assessments', a); go('assessment', { id }); };
     const pa = $('#proto-add'); if (pa) pa.onclick = async () => { await save(); const pr = protos.find(x => x.id === $('#proto-sel').value); pr.items.forEach(addRom); await Store.put('assessments', a); toast(`Protocolo “${pr.name}” aplicado`); go('assessment', { id }); };
   }
@@ -316,7 +324,7 @@ SCREENS.mark = async ({ id, slot, auto }) => {
     <div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">Marcação de pontos</span><h1>${esc(V.label)}</h1></div></div>
     <div class="row" style="align-items:flex-start;flex-wrap:wrap">${typeof refArtFor === 'function' && refArtFor(slot) ? `<div class="markref" title="Posição de referência">${refArtFor(slot)}</div>` : ''}<p class="muted" style="margin:0;max-width:75ch;font-size:.9rem;flex:1;min-width:220px">${esc(V.hint)}</p></div>
     <div id="m-msg"></div>
-    ${V.rom && vd.rom?.id && ROM_DEMO[vd.rom.id] ? `<details class="panel"><summary><b>Ver demonstração do movimento</b></summary><div class="exdetail" style="margin-top:10px"><div class="exanim">${romDemoSVG(vd.rom.id, 200)}</div><div data-ownvideo></div></div></details>` : ''}
+    ${V.rom && vd.rom?.id && ROM_DEMO[vd.rom.id] ? `<details class="panel" open><summary><b>Demonstração do movimento</b></summary><div class="exdetail" style="margin-top:10px"><div class="exanim">${romDemoSVG(vd.rom.id, 200)}</div><div data-ownvideo></div></div></details>` : ''}
     <div class="mark">
       <div class="stack">
         <div class="stage" id="stage"><canvas id="cv"></canvas><canvas class="loupe" id="loupe" width="264" height="264" hidden></canvas>
