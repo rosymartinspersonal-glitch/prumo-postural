@@ -11,33 +11,40 @@ const REF_ART = (() => {
   const guide = d => `<path d="${d}" stroke="${acc}" stroke-width="2" stroke-dasharray="5 4"/>`;
   const arc = d => `<path d="${d}" stroke="${acc}" stroke-width="2.4"/>`;
   const floor = (y, w = 160) => `<line x1="4" x2="${w - 4}" y1="${y}" y2="${y}" stroke="${mu}" stroke-width="2"/>`;
+  const cloth = (d, w = 12) => `<path d="${d}" stroke="${mu}" stroke-width="${w + 3}"/><path d="${d}" stroke="#0D0D0D" stroke-width="${w}"/>`;
+  const outfit = (top, shorts, w = 12) => (top ? cloth(top, w) : '') + (shorts ? cloth(shorts, w) : '');
   const flip = (w, svg) => svg.replace(/(<svg[^>]*>)([\s\S]*)(<\/svg>)/, `$1<g transform="translate(${w} 0) scale(-1 1)">$2</g>$3`);
   // em pé, de frente / de costas (viewBox 120×170)
   const standFront = (extra = '', legs = 'M52 82 L50 122 L50 160 M68 82 L70 122 L70 160') => S('0 0 120 170',
-    head(60, 16) + body(`M60 24 V32 M42 34 H78 M42 34 L44 82 M78 34 L76 82 M47 82 H73 M60 32 V82 M42 34 L36 84 M78 34 L84 84 ${legs}`) + extra);
+    head(60, 16) + body(`M60 24 V32 M42 34 H78 M42 34 L44 82 M78 34 L76 82 M47 82 H73 M60 32 V82 M42 34 L36 84 M78 34 L84 84 ${legs}`) + outfit('M46 41 H74', 'M49 85 H71 M52 88 L51 95 M68 88 L69 95') + extra);
   const front = standFront(`<g fill="${ink}" stroke="none"><circle cx="57" cy="15" r="1.4"/><circle cx="63" cy="15" r="1.4"/></g>` + guide('M30 34 H90 M34 82 H86'));
   const back = standFront(guide('M60 6 V164') + guide('M30 34 H90 M34 82 H86'));
   // perfil olhando para a direita (viewBox 120×170)
   const side = (arms = 'M58 36 L66 60 L68 84') => S('0 0 120 170',
-    `<path d="M58 166 V2" stroke="${acc}" stroke-width="1.6" stroke-dasharray="4 5" stroke-opacity=".7"/>` + head(62, 16) + body(`M60 24 L58 34 M58 34 C54 50 52 62 56 82 M56 82 L58 122 L58 160 L72 162 ${arms}`));
+    `<path d="M58 166 V2" stroke="${acc}" stroke-width="1.6" stroke-dasharray="4 5" stroke-opacity=".7"/>` + head(62, 16) + body(`M60 24 L58 34 M58 34 C54 50 52 62 56 82 M56 82 L58 122 L58 160 L72 162 ${arms}`) + outfit('M58 37 L56 49', 'M55 80 L56.5 92', 13));
   const latD = side(), latE = flip(120, latD);
   const armsFwd = side('M58 36 L104 36');
   // sentado, uma perna estendida e a outra dobrada, alcançando o pé (viewBox 160×100)
-  const sitUni = S('0 0 160 100', floor(90) + head(104, 42) + body('M44 86 L88 50 M44 86 L128 86 L132 70 M88 50 L126 68 M44 86 L70 66 L64 84 L52 86') + arc('M64 86 A20 20 0 0 0 59 74'));
-  const sitBil = S('0 0 160 100', floor(90) + head(104, 42) + body('M44 86 L88 50 M44 86 L128 86 L132 70 M88 50 L128 70 M44 84 L128 82') + arc('M64 86 A20 20 0 0 0 59 74'));
+  const sitUni = S('0 0 160 100', floor(90) + head(104, 42) + body('M44 86 L88 50 M44 86 L128 86 L132 70 M88 50 L126 68 M44 86 L70 66 L64 84 L52 86') + outfit('M72 64 L84 54', 'M44 84 L57 84') + arc('M64 86 A20 20 0 0 0 59 74'));
+  const sitBil = S('0 0 160 100', floor(90) + head(104, 42) + body('M44 86 L88 50 M44 86 L128 86 L132 70 M88 50 L128 70 M44 84 L128 82') + outfit('M72 64 L84 54', 'M44 84 L57 84') + arc('M64 86 A20 20 0 0 0 59 74'));
   // deitado de barriga para baixo, joelhos dobrados (viewBox 160×100), cabeça à esquerda
-  const prone = S('0 0 160 100', floor(90) + head(16, 80, 7) + body('M24 84 L92 84 L128 86 L110 40 M24 84 L40 76 L24 70') + guide('M92 86 L150 86') + arc('M118 86 A12 12 0 0 0 124 74'));
+  const prone = S('0 0 160 100', floor(90) + head(16, 80, 7) + body('M24 84 L92 84 L128 86 L110 40 M24 84 L40 76 L24 70') + outfit('M30 84 L48 84', 'M82 84 L99 84.4', 11) + guide('M92 86 L150 86') + arc('M118 86 A12 12 0 0 0 124 74'));
   // deitado de costas, uma perna estendida elevada (viewBox 160×100), cabeça à esquerda
-  const slr = S('0 0 160 100', floor(90) + head(14, 82, 7) + body('M22 84 L80 86 L150 86 M80 86 L104 14 M28 84 L52 88') + guide('M80 86 L148 86') + arc('M108 86 A28 28 0 0 0 89 60'));
+  const slr = S('0 0 160 100', floor(90) + head(14, 82, 7) + body('M22 84 L80 86 L150 86 M80 86 L104 14 M28 84 L52 88') + outfit('M28 84 L45 84.5', 'M70 86 L87 86', 11) + guide('M80 86 L148 86') + arc('M108 86 A28 28 0 0 0 89 60'));
   // em pé sobre uma perna, de frente (viewBox 120×170). Apoio na perna direita do paciente = lado esquerdo da imagem
   const unipBack = standFront(guide('M30 82 H90'), 'M52 82 L50 122 L50 160 M68 82 L72 124 L80 108');   // joelho dobrado para trás
   const unipHip = standFront(guide('M30 82 H90'), 'M52 82 L50 122 L50 160 M68 82 L74 98 L72 130');   // quadril dobrado à frente (joelho alto)
+  // flexão anterior em pé (viewBox 120×170)
+  const flexLat = S('0 0 120 170', floor(164, 120) + head(84, 112, 7) + body('M46 162 L48 120 L44 82 M44 82 C56 64 74 70 80 96 M70 76 L74 120 L76 158 M56 162 L44 162') + outfit('M68 74 L77 86', 'M44 80 L46.5 92', 12));
+  const encFlexAnt = S('0 0 120 170', floor(164, 120) + head(60, 104, 9) + body('M38 92 C46 82 74 82 82 92 M38 92 L40 158 M82 92 L80 158 M50 92 L46 130 L44 162 M70 92 L74 130 L76 162') + outfit('M44 89 H76', '', 10) + `<path d="M30 160 H90" stroke="${acc}" stroke-width="2" stroke-dasharray="5 4"/>`);
+  const flexBack = S('0 0 120 170', floor(164, 120) + body('M42 70 C44 56 76 56 78 70 M42 70 L46 112 L40 162 M78 70 L74 112 L80 162 M60 60 V96') + outfit('', 'M45 66 H75 M45 72 L46 80 M75 72 L74 80', 11) + `<path d="M30 64 H90" stroke="${acc}" stroke-width="2" stroke-dasharray="5 4"/>` + head(60, 104, 7));
   return {
     front, back, latD, latE,
     encSentUniD: sitUni, encSentUniE: flip(160, sitUni), encSentBilD: sitBil, encSentBilE: flip(160, sitBil),
     encPronoD: flip(160, prone), encPronoE: prone, encSlrD: slr, encSlrE: flip(160, slr),
     encUnipD: unipBack, encUnipE: flip(120, unipBack), encCegD: unipHip, encCegE: flip(120, unipHip),
     encBracosD: armsFwd, encBracosE: flip(120, armsFwd),
+    encFlexAnt, adamsPost: flexBack, encFlexLatD: flexLat, encFlexLatE: flip(120, flexLat), adamsLat: flexLat,
   };
 })();
 
@@ -171,6 +178,33 @@ const REF_ART = (() => {
         return out;
       } };
   }
+  // 6) flexão anterior em pé — vista anterior (simetria do alcance)
+  VIEWS.encFlexAnt = { ...base, detect: 'pose',
+    label: 'Flexão anterior em pé — vista anterior', short: 'Flexão frente',
+    hint: 'De frente para a câmera, pés na largura do quadril e joelhos estendidos. Desce o tronco à frente levando as mãos ao chão, cabeça relaxada. Câmera na altura do quadril.',
+    points: [['acromioD', 'Acrômio direito'], ['acromioE', 'Acrômio esquerdo'], ['maoD', 'Ponta dos dedos da mão direita'], ['maoE', 'Ponta dos dedos da mão esquerda'], ['tornD', 'Tornozelo direito (centro)'], ['tornE', 'Tornozelo esquerdo (centro)']],
+    tpl: { acromioD: [.38, .55], acromioE: [.62, .55], maoD: [.4, .9], maoE: [.6, .9], tornD: [.42, .93], tornE: [.58, .93] },
+    derive: L => ({ acromioD: L[12], acromioE: L[11], maoD: L[20], maoE: L[19], tornD: L[28], tornE: L[27] }),
+    lines: [['acromioD', 'acromioE'], ['acromioD', 'maoD'], ['acromioE', 'maoE'], ['maoD', 'maoE'], ['tornD', 'tornE']],
+    levels: [['acromioD', 'acromioE'], ['maoD', 'maoE']],
+    measures(P) {
+      const out = [];
+      let v = tiltH(P.maoD, P.maoE);
+      out.push(M('encFlexMaos', 'Nível das mãos na flexão', v, { ok: [0, 3], warn: [0, 6], ref: '≤ 3°', at: 'maoE', text: v < 1 ? 'Mãos niveladas' : 'Mão ' + (P.maoD.y < P.maoE.y ? 'direita' : 'esquerda') + ' mais alta (alcança menos)' }));
+      v = tiltH(P.acromioD, P.acromioE);
+      out.push(M('encFlexOmbros', 'Nível dos ombros na flexão', v, { ok: [0, 3], warn: [0, 6], ref: '≤ 3°', at: 'acromioE', text: v < 1 ? 'Ombros nivelados' : 'Ombro ' + (P.acromioD.y < P.acromioE.y ? 'direito' : 'esquerdo') + ' mais alto (rotação ou assimetria do tronco)' }));
+      const mm = mid(P.maoD, P.maoE), mp = mid(P.tornD, P.tornE), w = dist(P.tornD, P.tornE) || 1;
+      v = Math.abs(mm.x - mp.x) / w * 100;
+      out.push(M('encFlexCentro', 'Centralização do alcance (% da largura entre os pés)', v, { unit: '%', ok: [0, 10], warn: [0, 20], ref: '≤ 10%', at: 'maoD', text: v < 3 ? 'Alcance centrado' : 'Alcance desviado para a ' + (mm.x < mp.x ? 'direita' : 'esquerda') + ' do paciente' }));
+      return out;
+    } };
+  // 7) flexão anterior em pé — perfil direito e esquerdo (mesmas medidas da vista lateral de Adams)
+  for (const r of [true, false]) {
+    const A = VIEWS.adamsLat;
+    VIEWS['encFlexLat' + (r ? 'D' : 'E')] = { ...A, side: r ? 'D' : 'E', label: `Flexão anterior em pé — perfil ${ladoM(r)}`, short: `Flexão ${r ? 'D' : 'E'}`,
+      hint: `Lado ${ladoM(r)} voltado para a câmera, pés juntos e joelhos estendidos. Desce o tronco o máximo que conseguir com os braços pendentes em direção ao chão. Use a régua para obter a distância dedo–chão em cm.`,
+      tpl: mirror(A.tpl, r) };
+  }
   for (const r of [true, false]) {
     const s = r ? 'D' : 'E';
     VIEWS['encSentUni' + s] = sitReach(r, true);
@@ -183,16 +217,25 @@ const REF_ART = (() => {
   }
 })();
 
+const ROUPA = ' Roupa: top preto e biquíni ou short preto (deixa os pontos anatômicos visíveis).';
+for (const k of Object.keys(REF_ART)) if (VIEWS[k] && !String(VIEWS[k].hint || '').includes('Roupa:')) VIEWS[k].hint = (VIEWS[k].hint || '') + ROUPA;
+
 KINDS.encurt = {
   label: 'Testes de encurtamento', icon: 'E',
-  desc: 'Flexibilidade e compensações em 14 fotos: sentar e alcançar (uni e bilateral), teste de Ely, elevação da perna estendida, apoio unipodal (Trendelenburg e com flexão do quadril) e braços à frente. Cada vista mostra o desenho da posição.',
-  views: ['encSentUniD', 'encSentUniE', 'encSentBilD', 'encSentBilE', 'encSlrD', 'encSlrE', 'encPronoD', 'encPronoE', 'encUnipD', 'encUnipE', 'encCegD', 'encCegE', 'encBracosD', 'encBracosE'],
+  desc: 'Flexibilidade e compensações em 18 fotos: flexão anterior em pé (frente, costas e perfis), sentar e alcançar (uni e bilateral), teste de Ely, elevação da perna estendida, apoio unipodal (Trendelenburg e com flexão do quadril) e braços à frente. Cada vista mostra o desenho da posição.',
+  views: ['encFlexAnt', 'adamsPost', 'encFlexLatD', 'encFlexLatE', 'encSentUniD', 'encSentUniE', 'encSentBilD', 'encSentBilE', 'encSlrD', 'encSlrE', 'encPronoD', 'encPronoE', 'encUnipD', 'encUnipE', 'encCegD', 'encCegE', 'encBracosD', 'encBracosE'],
 };
 
 /* textos explicativos das medidas novas */
 {
   const base = explain;
   const T = {
+    dedoChaoRel: ['Alcance adequado na flexão anterior.', 'Alcance reduzido na flexão anterior: sinal de encurtamento da cadeia posterior.'],
+    flexTronco: ['Inclinação do tronco registrada para acompanhar a evolução.', 'Inclinação do tronco registrada para acompanhar a evolução.'],
+    curvaDorsal: ['Curvatura da coluna registrada para acompanhar a evolução.', 'Curvatura da coluna registrada para acompanhar a evolução.'],
+    encFlexMaos: ['Mãos niveladas na flexão anterior.', 'Mãos desniveladas na flexão: um lado alcança menos (encurtamento ou rotação assimétrica).'],
+    encFlexOmbros: ['Ombros nivelados na flexão anterior.', 'Ombros desnivelados na flexão: sinal de rotação do tronco — compare com a vista de costas (Adams).'],
+    encFlexCentro: ['Alcance centrado entre os pés.', 'Alcance desviado para um lado: assimetria de flexibilidade ou de rotação do tronco.'],
     encTroncoCoxa: ['Boa flexibilidade da cadeia posterior.', 'Flexibilidade da cadeia posterior reduzida (isquiotibiais, glúteos e paravertebrais).'],
     encAlcance: ['Alcança o pé: flexibilidade adequada.', 'Não alcança o pé: sinal de encurtamento da cadeia posterior.'],
     encAlcanceRel: ['Alcança o pé: flexibilidade adequada.', 'Não alcança o pé: sinal de encurtamento da cadeia posterior.'],
