@@ -28,7 +28,23 @@
   else if (ck) { toast('Pagamento não concluído.'); go('plans'); }
   else go('home');
   if ('serviceWorker' in navigator && location.protocol === 'https:') {
-    try { await navigator.serviceWorker.register('sw.js'); } catch { /* sem modo offline neste ambiente */ }
+    try {
+      // procura versão nova ao abrir e sempre que o app volta para a tela (iPhone mantém o app aberto em segundo plano)
+      const hadCtrl = !!navigator.serviceWorker.controller, t0 = Date.now();
+      const reg = await navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' });
+      const check = () => reg.update().catch(() => { });
+      check(); document.addEventListener('visibilitychange', () => { if (!document.hidden) check(); });
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadCtrl || reloading) return;
+        if (Date.now() - t0 < 8000) { reloading = true; location.reload(); return; }   // acabou de abrir: atualiza direto
+        if (document.querySelector('.updbar')) return;
+        const b = document.createElement('div'); b.className = 'updbar'; b.setAttribute('role', 'status');
+        b.innerHTML = '<span>Nova versão do app disponível.</span><button class="btn small primary">Atualizar</button>';
+        b.querySelector('button').onclick = () => { reloading = true; location.reload(); };
+        document.body.appendChild(b);
+      });
+    } catch { /* sem modo offline neste ambiente */ }
   }
 })();
 
