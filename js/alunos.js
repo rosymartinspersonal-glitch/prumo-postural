@@ -14,9 +14,18 @@ const AL = (() => {
   const PAY_TYPES = ['Manual', 'À vista', 'Parcelado', 'Recorrente no cartão'];
   const PAY_METHODS = ['Pix', 'Cartão de crédito', 'Cartão de débito', 'Dinheiro', 'Transferência'];
   const SERVICES = sortPT(['Planilha de Treino', 'Planilha de Treino RM', 'Planilha de Treino + Dieta', 'Planilha de Treino Casal', 'Consultoria Online', 'Protocolo Alimentar – Dieta', 'Personal Presencial', 'Avaliação postural', 'Reabilitação / correção postural',
-    'Plano Casal Protocolo RM – 10% Desconto', 'Plano Basic – Personal Trainer (2x/semana)', 'Plano Silver – Personal Trainer (3x/semana)', 'Plano Gold – Personal Trainer (4x/semana)', 'Plano Premium – Personal Trainer (5x/semana)']);
+    'Plano Casal Protocolo RM – 10% Desconto', 'Personal Basic', 'Personal Silver', 'Personal Premium', 'Personal Gold', 'Personal Black', 'Personal Diamante']);
   function sortPT(l) { return [...new Set(l.map(x => String(x || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR', { sensitivity: 'base' })); }
 
+  // planos de personal presencial (2027): aulas por semana, valor mensal fixo e dias sugeridos para o calendário
+  const PERSONAL_PLANS = [
+    { name: 'Personal Basic', perWeek: 2, monthly: '729.58', durTxt: '50 minutos', days: [[1, 50, 85], [4, 50, 85]] },
+    { name: 'Personal Silver', perWeek: 2, monthly: '1062.50', durTxt: '80 minutos', days: [[2, 80, 127.5], [4, 80, 127.5]] },
+    { name: 'Personal Premium', perWeek: 3, monthly: '1062.50', durTxt: '50 minutos', days: [[1, 50, 85], [2, 50, 85], [3, 50, 85]] },
+    { name: 'Personal Gold', perWeek: 3, monthly: '1253.75', durTxt: '50 e 80 minutos', days: [[1, 50, 85], [2, 50, 85], [4, 80, 127.5]] },
+    { name: 'Personal Black', perWeek: 4, monthly: '1430.83', durTxt: '50 minutos', days: [[1, 50, 85], [2, 50, 85], [3, 50, 85], [4, 50, 85]] },
+    { name: 'Personal Diamante', perWeek: 5, monthly: '1785.00', durTxt: '50 minutos', days: [[1, 50, 85], [2, 50, 85], [3, 50, 85], [4, 50, 85], [5, 50, 85]] },
+  ];
   // tabela de valores padrão (a mesma do controle de alunos); editável em Alunos → Valores
   const opt = (group, service, label, desc, rows, recurring12 = false) => rows.map(([m, v]) => ({ id: slugify(service) + '-' + m, group, service, label, desc, months: m, plan: MONTH_PLAN[m], amount: v, paymentType: recurring12 && m === 12 ? 'Recorrente no cartão' : 'Manual' }));
   function slugify(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
@@ -27,10 +36,7 @@ const AL = (() => {
     ...opt('Planos para casal', 'Plano Casal Protocolo RM – 10% Desconto', 'Casal Protocolo RM (10% desconto)', 'Planilha de treino MFIT, com 10% de desconto.', [[1, '180.00']]),
     ...opt('Planos para casal', 'Planilha de Treino Casal', 'Treino Casal', 'Planilha de treino MFIT.', [[1, '280.00'], [3, '690.00'], [6, '1200.00'], [12, '229.00']], true),
     ...opt('Protocolo alimentar / dieta', 'Protocolo Alimentar – Dieta', 'Protocolo Alimentar – Dieta', 'Planejamento alimentar pelo WEB DIET.', [[1, '230.00'], [3, '500.00'], [6, '900.00'], [12, '189.90']], true),
-    ...opt('Personal trainer presencial', 'Plano Basic – Personal Trainer (2x/semana)', 'Personal Basic · 2x/semana', '2 aulas presenciais por semana. Valor mensal do acompanhamento (tabela 2027).', [[1, '729.58']]),
-    ...opt('Personal trainer presencial', 'Plano Silver – Personal Trainer (3x/semana)', 'Personal Silver · 3x/semana', '3 aulas presenciais por semana. Valor mensal do acompanhamento (tabela 2027).', [[1, '1062.50']]),
-    ...opt('Personal trainer presencial', 'Plano Gold – Personal Trainer (4x/semana)', 'Personal Gold · 4x/semana', '4 aulas presenciais por semana. Valor mensal do acompanhamento (tabela 2027).', [[1, '1430.83']]),
-    ...opt('Personal trainer presencial', 'Plano Premium – Personal Trainer (5x/semana)', 'Personal Premium · 5x/semana', '5 aulas presenciais por semana. Valor mensal do acompanhamento (tabela 2027).', [[1, '1785.00']]),
+    ...PERSONAL_PLANS.map(p => ({ id: 'personal-' + slugify(p.name), group: 'Personal trainer presencial', service: p.name, label: `${p.name} · ${p.perWeek}x/semana · ${p.durTxt}`, desc: `${p.perWeek} aulas presenciais por semana, ${p.durTxt}. Valor mensal fixo (tabela 2027).`, months: 1, plan: 'Mensal', amount: p.monthly, paymentType: 'Manual', perWeek: p.perWeek })),
   ];
 
   // datas sempre "AAAA-MM-DD", no fuso de Brasília
@@ -201,7 +207,7 @@ const AL = (() => {
     }).filter(r => r.name.trim());
   }
 
-  return { sortPT, SITUATIONS, STUDENT_STATUS, REV_STATUS, PLAN_NAMES, PLAN_MONTHS, DEADLINES, PAY_TYPES, PAY_METHODS, SERVICES, DEFAULT_CATALOG,
+  return { PERSONAL_PLANS, sortPT, SITUATIONS, STUDENT_STATUS, REV_STATUS, PLAN_NAMES, PLAN_MONTHS, DEADLINES, PAY_TYPES, PAY_METHODS, SERVICES, DEFAULT_CATALOG,
     today, days, br, addMonths, addDays, norm, parseMoney, money, moneyInput, blank, revStatus, validate, isTraining, isActive, reminders, agenda, remTitle, whenTxt,
     message, waLink, suggestRevisions, renew, stats, toCSV, fromCSV, splitCSV, toISO, firstName };
 })();
@@ -220,10 +226,16 @@ async function alCatalog() {
     for (const it of c.list) { if (it.group === 'Personal trainer presencial' && AL_PERSONAL_2027[it.amount]) { it.amount = AL_PERSONAL_2027[it.amount]; const d = AL.DEFAULT_CATALOG.find(x => x.id === it.id); if (d) it.desc = d.desc; } }
     c.v = 2; await Store.put('settings', c);
   }
+  if (c.v < 3) {   // planos de personal 2027: Basic, Silver, Premium, Gold, Black e Diamante
+    c.list = [...c.list.filter(it => it.group !== 'Personal trainer presencial'), ...AL.DEFAULT_CATALOG.filter(it => it.group === 'Personal trainer presencial')];
+    c.v = 3; await Store.put('settings', c);
+  }
   return c.list;
 }
-async function alServices() { const c = await Store.get('settings', 'services'); return AL.sortPT([...(c?.list || AL.SERVICES), ...(c ? [] : (await alCatalog()).map(x => x.service))]); }
-async function alSaveServices(list) { await Store.put('settings', { id: 'services', list: AL.sortPT(list) }); }
+const AL_OLD_PERSONAL = ['Plano Basic – Personal Trainer (2x/semana)', 'Plano Silver – Personal Trainer (3x/semana)', 'Plano Gold – Personal Trainer (4x/semana)', 'Plano Premium – Personal Trainer (5x/semana)'];
+async function alServices() { const c = await Store.get('settings', 'services');
+  if (c?.list && !c.v3) { c.list = AL.sortPT([...c.list.filter(x => !AL_OLD_PERSONAL.includes(x)), ...AL.PERSONAL_PLANS.map(p => p.name)]); c.v3 = true; await Store.put('settings', c); } return AL.sortPT([...(c?.list || AL.SERVICES), ...(c ? [] : (await alCatalog()).map(x => x.service))]); }
+async function alSaveServices(list) { await Store.put('settings', { id: 'services', list: AL.sortPT(list), v3: true }); }
 const PLAN_DEFAULT = [['Mensal', 1], ['Bimestral', 2], ['Trimestral', 3], ['Semestral', 6], ['Anual', 12]];
 async function alPlans() {
   const c = await Store.get('settings', 'plans');

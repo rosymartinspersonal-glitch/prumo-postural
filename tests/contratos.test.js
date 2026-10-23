@@ -59,3 +59,14 @@ assert.deepEqual(Array.from(PC.htmlToLines('<p>Linha <b>um</b></p><ul><li>item</
 const c = PC.blankContract('x', 2027); const h1 = PC.canonical(c); c.sections[0].items[0].value = 'Ana'; assert.notEqual(PC.canonical(c), h1);
 assert.equal(PC.statusOf({ status: 'assinado', schedule: { end: '2027-12-31' } }, '2028-01-02'), 'vencido');
 (async () => { const h = await PC.sha256('abc'); assert.equal(h, 'ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad'); console.log('contratos: calendário confere com os 12 PDFs de 2027'); })();
+// planos de personal: os dias sugeridos dão o valor mensal da tabela em 2027
+{
+  const c2 = { console, Math, Number, String, JSON, Date, Intl, encodeURIComponent }; vm.createContext(c2);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'js', 'alunos.js'), 'utf8').split('/* ================= telas')[0] + ';this.AL=AL;', c2);
+  for (const p of c2.AL.PERSONAL_PLANS) {
+    const S = PC.blankSchedule(2027); S.rules[0].days = p.days.map(([dow, dur, price]) => ({ dow, time: '', dur, price })); S.offs = PC.holidays(2027);
+    assert.equal(PC.yearSummary(S).fixed, Number(p.monthly), `${p.name}: ${PC.yearSummary(S).fixed} ≠ ${p.monthly}`);
+    assert.equal(p.days.length, p.perWeek, p.name + ' aulas por semana');
+  }
+  console.log('contratos: 6 planos de personal conferidos');
+}

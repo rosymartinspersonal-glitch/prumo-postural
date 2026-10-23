@@ -107,11 +107,13 @@ async function pcImportData(d) {
   return (d.contracts || []).length;
 }
 async function pcNewContract(clientId) {
-  const clients = await pcClients(), ct = await pcTemplates('contrato'), gt = await pcTemplates('diretrizes'), y = new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0);
+  const plans = await pcPlans(), clients = await pcClients(), ct = await pcTemplates('contrato'), gt = await pcTemplates('diretrizes'), y = new Date().getFullYear() + (new Date().getMonth() >= 9 ? 1 : 0);
   if (!clients.length) { toast('Cadastre o cliente primeiro'); return go('pcCliente', { id: null }); }
   const m = document.createElement('div'); m.className = 'modal';
   m.innerHTML = `<form class="panel" role="dialog" aria-modal="true" style="max-width:480px"><h2>Novo contrato</h2>
     <label class="f">Cliente<select id="nk-c">${clients.map(c => `<option value="${c.id}"${c.id === clientId ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label>
+    <label class="f">Plano<select id="nk-p"><option value="">Sem plano (preencher à mão)</option>${plans.map(p => `<option value="${esc(p.name)}">${esc(p.name)} — ${p.perWeek}x/semana · ${esc(p.durTxt)} · ${esc(PC.money(p.monthly))}/mês</option>`).join('')}</select></label>
+    <p class="muted" id="nk-pi" style="margin:0;font-size:.85rem"></p>
     <label class="f">Ano do calendário<input id="nk-y" type="number" min="2020" max="2100" value="${y}"></label>
     <label class="f">Modelo de contrato<select id="nk-t"><option value="">Modelo padrão do app</option>${ct.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
     <label class="f">Modelo de diretrizes<select id="nk-g"><option value="">Modelo padrão do app</option>${gt.map(t => `<option value="${t.id}">${esc(t.name)}</option>`).join('')}</select></label>
@@ -119,14 +121,36 @@ async function pcNewContract(clientId) {
     <div class="row" style="justify-content:flex-end"><button type="button" class="btn" data-x>Cancelar</button><button class="btn primary">Criar</button></div></form>`;
   document.body.appendChild(m);
   m.addEventListener('click', e => { if (e.target === m || e.target.closest('[data-x]')) m.remove(); });
+  $('#nk-p', m).onchange = e => { const p = plans.find(x => x.name === e.target.value); $('#nk-pi', m).textContent = p ? `Dias sugeridos: ${p.days.map(d => `${PC.DOW[d[0]]} (${d[1]} min)`).join(', ')}. Você pode mudar os dias e horários no calendário.` : ''; };
   $('form', m).onsubmit = async e => {
     e.preventDefault(); const year = +$('#nk-y', m).value || y, t = ct.find(x => x.id === $('#nk-t', m).value), g = gt.find(x => x.id === $('#nk-g', m).value);
     const k = PC.blankContract($('#nk-c', m).value, year, t?.data, g?.data); k.createdAt = todayISO();
     if ($('#nk-h', m).checked) k.schedule.offs = PC.holidays(year);
     const cl = clients.find(c => c.id === k.clientId), P = await pcProfessional();
     pcPrefill(k, cl, P);
+    const plan = plans.find(x => x.name === $('#nk-p', m).value); if (plan) pcApplyPlan(k, plan);
     m.remove(); PCX.draft = k; PCX.mode = 'fill'; pcSetDirty(true); go('pcContrato', { id: k.id, isNew: true });
   };
+}
+// planos de personal (tabela de valores de Alunos online)
+async function pcPlans() {
+  const cat = typeof alCatalog === 'function' ? await alCatalog() : [];
+  return (AL.PERSONAL_PLANS || []).map(p => { const c = cat.find(x => x.service === p.name); return { ...p, monthly: Number(c?.amount ?? p.monthly) }; });
+}
+function pcApplyPlan(k, plan) {
+  const S = k.schedule, money = PC.money;
+  S.rules[0].days = plan.days.map(([dow, dur, price]) => ({ dow, time: '', dur, price }));
+  S.fixedMonthly = true; k.plan = plan.name;
+  const Y = PC.yearSummary(S); S.fixedOverride = Math.abs(Y.fixedCalc - plan.monthly) > 0.009 ? plan.monthly : null;   // o preço do plano vale; se o calendário do ano der diferente, fica como ajuste manual visível
+  k.title = `${plan.name} ${S.year}`;
+  const set = (label, v) => { for (const s of k.sections) for (const i of s.items) if (i.type === 'field' && i.label === label) i.value = v; };
+  const prices = [...new Set(plan.days.map(d => d[2]))];
+  set('Serviço contratado', `${plan.name} — personal trainer presencial`); set('Frequência das aulas', `${plan.perWeek} vezes por semana`); set('Duração da aula', plan.durTxt);
+  set('Dias da semana e horários', plan.days.map(d => PC.DOW[d[0]]).join(', ') + ' (horários a combinar)');
+  set('Valor por aula', prices.length > 1 ? plan.days.map(d => `${money(d[2])} (${PC.DOW[d[0]].toLowerCase()}, ${d[1]} min)`).join(' · ') : money(prices[0]));
+  set('Quantidade de aulas', `${Y.lessons} aulas no ano (feriados em dia de aula descontados)`);
+  set('Valor do plano', `${money(plan.monthly)} por mês (mensalidade fixa)`);
+  set('Início do contrato', PC.br(S.start)); set('Término do contrato', PC.br(S.end));
 }
 // preenche só o que já é conhecido (nome do aluno, profissional); o resto fica em branco
 function pcPrefill(k, cl, P) {
