@@ -15,11 +15,11 @@ async function pcPDF(k, cl, part) {
     doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(230, 230, 230);
     doc.text(T(`${P.name || 'Profissional'}${P.reg ? ' · ' + P.reg : ''}`), M, 15);
     doc.text(T(`Aluno: ${cl?.name || '—'} · ${k.title} · versão ${k.version}`), W - M - (logoW ? logoW + 4 : 0), 15, { align: 'right' });
-    if (logo) try { doc.addImage(logo, 'PNG', W - M - logoW, 3, logoW, 14); } catch (e) { }
+    if (logo) try { doc.addImage(logo, 'PNG', W - M - logoW, 3, logoW, 14, 'pclogo', 'FAST'); } catch (e) { }
     y = 30;
   };
   let logo = null, logoW = 0;
-  try { const src = P.logo || 'assets/logo.png', li = await loadImg(src), c = document.createElement('canvas'); c.width = li.naturalWidth; c.height = li.naturalHeight; c.getContext('2d').drawImage(li, 0, 0); logo = c.toDataURL('image/png'); logoW = Math.min(36, 14 * li.naturalWidth / li.naturalHeight); } catch (e) { }
+  try { const src = P.logo || 'assets/logo.png', li = await loadImg(src), k = Math.min(1, 140 / li.naturalHeight), c = document.createElement('canvas'); c.width = Math.round(li.naturalWidth * k); c.height = Math.round(li.naturalHeight * k); c.getContext('2d').drawImage(li, 0, 0, c.width, c.height); logo = c.toDataURL('image/png'); logoW = Math.min(36, 14 * li.naturalWidth / li.naturalHeight); } catch (e) { }
   const need = h => { if (y + h > H - 18) newPage(); };
   const h2 = t => { need(14); doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(...INK); doc.text(T(t), M, y); y += 2; doc.setDrawColor(...ACC); doc.setLineWidth(0.6); doc.line(M, y, M + 24, y); doc.setLineWidth(0.2); y += 6; };
   const h3 = t => { need(10); doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(...INK); const L = doc.splitTextToSize(T(t), W - 2 * M); doc.text(L, M, y); y += L.length * 4.6 + 1.5; };
