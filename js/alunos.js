@@ -397,7 +397,7 @@ async function alLembretes(body, list, t) {
   // cada aba: [chave, rótulo, filtro sobre a lista]
   const T = [
     ['all', 'Todos', h],
-    ['revision', 'Treino', h.filter(x => x.kind === 'revision')],
+    ['revision', 'Treino e revisões do acompanhamento', h.filter(x => x.kind === 'revision')],   // trocas de treino + revisões do acompanhamento (dieta etc.)
     ['start', 'Início', h.filter(x => x.kind === 'start')],
     ['expiry', 'Término', h.filter(x => x.kind === 'expiry' && x.days >= 0)],
     ['payment', 'Pacotes pendentes', h.filter(x => x.kind === 'payment')],
