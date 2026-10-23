@@ -544,7 +544,7 @@ SCREENS.alunoForm = async ({ id, patientId } = {}) => {
   $('#f-autorev').onclick = () => {
     if (!v('start').value) return toast('Informe a data de efetivação');
     const s = AL.suggestRevisions({ start: v('start').value, end: v('end').value, deadline: v('deadline').value });
-    [1, 2, 3].forEach(n => { if (!v(`revision${n}Status`).value) v(`revision${n}`).value = s[n - 1] || ''; });
+    if (s.length) [1, 2, 3].forEach(n => { if (!v(`revision${n}Status`).value) { v(`revision${n}`).value = s[n - 1] || ''; v(`revision${n}Status`).disabled = !s[n - 1]; } });
     toast(s.length ? `${s.length} data${s.length > 1 ? 's' : ''} sugerida${s.length > 1 ? 's' : ''} (a cada ${v('deadline').value || '30 dias'})` : 'O plano termina antes da 1ª revisão');
   };
   // sem data, a situação da revisão fica travada
