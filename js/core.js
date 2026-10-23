@@ -26,12 +26,12 @@ const initials = n => (n || '?').split(/\s+/).filter(Boolean).slice(0, 2).map(w 
 /* ---------- armazenamento (IndexedDB, com memória como reserva) ---------- */
 const Store = (() => {
   let db = null;
-  const STORES = ['patients', 'assessments', 'settings', 'media', 'workouts', 'students'];
+  const STORES = ['patients', 'assessments', 'settings', 'media', 'workouts', 'students', 'pcClients', 'pcContracts', 'pcTemplates'];
   const mem = Object.fromEntries(STORES.map(k => [k, new Map()]));
   function open() {
     return new Promise(res => {
       try {
-        const r = indexedDB.open('prumo', 3);   // nome interno mantido para não perder dados
+        const r = indexedDB.open('prumo', 4);   // nome interno mantido para não perder dados
         r.onupgradeneeded = () => { const d = r.result; for (const s of STORES) if (!d.objectStoreNames.contains(s)) d.createObjectStore(s, { keyPath: 'id' }); };
         r.onsuccess = () => { db = r.result; res(); };
         r.onerror = () => res();
@@ -55,7 +55,7 @@ const Store = (() => {
   };
 })();
 
-const APP_VERSION = '3.12.1';
+const APP_VERSION = '3.13.0';
 let UNITS = 'metric';
 const cmOut = cm => UNITS === 'imperial' ? cm / 2.54 : cm;
 const cmUnit = () => UNITS === 'imperial' ? 'pol' : 'cm';

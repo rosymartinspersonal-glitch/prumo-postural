@@ -40,8 +40,8 @@ function applyPalette(S) {
 
 /* ---------- navegação ---------- */
 let cleanup = null;
-const NAV = { home: 'nav-home', patients: 'nav-patients', alunos: 'nav-alunos', results: 'nav-results', settings: 'nav-settings', plans: 'nav-plans' };
-const SECTION = { home: 'home', exercises: 'home', exercise: 'home', workout: 'home', workouts: 'home', results_db: 'results', settings: 'settings', help: 'settings', legal: 'settings', plans: 'plans', alunos: 'alunos', aluno: 'alunos', alunoForm: 'alunos' };
+const NAV = { home: 'nav-home', patients: 'nav-patients', alunos: 'nav-alunos', contratos: 'nav-contratos', results: 'nav-results', settings: 'nav-settings', plans: 'nav-plans' };
+const SECTION = { home: 'home', exercises: 'home', exercise: 'home', workout: 'home', workouts: 'home', results_db: 'results', settings: 'settings', help: 'settings', legal: 'settings', plans: 'plans', alunos: 'alunos', aluno: 'alunos', alunoForm: 'alunos', contratos: 'contratos', pcCliente: 'contratos', pcContrato: 'contratos', pcModelo: 'contratos' };
 function go(name, p = {}) {
   if (cleanup) { try { cleanup(); } catch (e) { } cleanup = null; }
   window.scrollTo(0, 0);
@@ -754,7 +754,7 @@ SCREENS.settings = async () => {
   };
   const lr = $('#s-logo-rm'); if (lr) lr.onclick = async () => { S.logo = ''; await Store.put('settings', S); go('settings'); };
   $('#bk-out').onclick = async () => {
-    const data = { app: 'teamrm-posture', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments'), students: await Store.all('students'), catalog: (await Store.get('settings', 'catalog'))?.list || null, services: (await Store.get('settings', 'services'))?.list || null, plans: (await Store.get('settings', 'plans'))?.list || null, payTypes: (await Store.get('settings', 'payTypes'))?.list || null, payMethods: (await Store.get('settings', 'payMethods'))?.list || null, customEx: (await Store.get('settings', 'customEx'))?.list || [] };
+    const data = { app: 'teamrm-posture', version: 2, exportedAt: todayISO(), settings: S, patients: await Store.all('patients'), assessments: await Store.all('assessments'), students: await Store.all('students'), pcClients: await Store.all('pcClients'), pcContracts: await Store.all('pcContracts'), pcTemplates: await Store.all('pcTemplates'), catalog: (await Store.get('settings', 'catalog'))?.list || null, services: (await Store.get('settings', 'services'))?.list || null, plans: (await Store.get('settings', 'plans'))?.list || null, payTypes: (await Store.get('settings', 'payTypes'))?.list || null, payMethods: (await Store.get('settings', 'payMethods'))?.list || null, customEx: (await Store.get('settings', 'customEx'))?.list || [] };
     downloadBlob(new Blob([JSON.stringify(data)], { type: 'application/json' }), `teamrm-backup-${new Date().toISOString().slice(0, 10)}.json`); toast('Backup exportado');
   };
   $('#bk-in').onchange = async e => {
@@ -765,6 +765,7 @@ SCREENS.settings = async () => {
       for (const p of d.patients) await Store.put('patients', p);
       for (const a of d.assessments) await Store.put('assessments', a);
       for (const st of (d.students || [])) await Store.put('students', st);
+      for (const k of ['pcClients', 'pcContracts', 'pcTemplates']) for (const x of (d[k] || [])) await Store.put(k, x);
       if (Array.isArray(d.catalog) && d.catalog.length) await Store.put('settings', { id: 'catalog', list: d.catalog });
       if (Array.isArray(d.services) && d.services.length) await Store.put('settings', { id: 'services', list: d.services });
       if (Array.isArray(d.plans) && d.plans.length) await Store.put('settings', { id: 'plans', list: d.plans });
