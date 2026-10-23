@@ -192,7 +192,7 @@ SCREENS.video = async ({ id }) => {
     </section>
     <section class="panel stack"><h2>2. Vídeo do paciente</h2>
       <p class="muted" style="margin:0;font-size:.9rem" id="vhint"></p>
-      <div class="row"><label class="btn ${sess.url ? '' : 'primary'}" style="cursor:pointer">${sess.url ? 'Trocar vídeo' : 'Gravar ou escolher vídeo'}<input type="file" accept="video/*" capture="environment" id="vfile" hidden></label><span class="muted" id="vname">${esc(sess.name || vv.name || 'Nenhum vídeo carregado')}</span></div>
+      <div class="row"><label class="btn ${sess.url ? '' : 'primary'}" style="cursor:pointer">📹 ${sess.url ? 'Gravar outro' : 'Gravar vídeo'}<input type="file" accept="video/*" capture="environment" data-vf hidden></label><label class="btn" style="cursor:pointer">🖼️ Galeria<input type="file" accept="video/*" data-vf hidden></label><span class="muted" id="vname">${esc(sess.name || vv.name || 'Nenhum vídeo carregado')}</span></div>
       <label class="row" style="gap:8px;font-size:.9rem"><input type="checkbox" id="vkeep" ${vv.keep ? 'checked' : ''}> Guardar o vídeo do paciente neste aparelho (para rever quadro a quadro depois)</label>
       <div class="row"><button class="btn primary" id="run" ${sess.url ? '' : 'disabled'}>Analisar vídeo</button><span class="muted" id="prog"></span></div>
     </section>
@@ -215,14 +215,14 @@ SCREENS.video = async ({ id }) => {
   $('#a-date').onchange = async e => { if (e.target.value) { a.date = new Date(e.target.value + 'T12:00:00').toISOString(); await Store.put('assessments', a); } };
   const readOpts = () => { vv.analysis = $('#van').value; vv.move = $('#vmove').value; vv.side = $('#vside').value; vv.mode = $('#vmode').value; vv.fps = +$('#vfps').value; vv.angles = $$('[data-ang]:checked').map(c => c.dataset.ang); vv.keep = $('#vkeep').checked; };
   $('#vkeep').onchange = async e => { vv.keep = e.target.checked; if (!vv.keep) await Store.del('media', 'video:' + id); await Store.put('assessments', a); };
-  $('#vfile').onchange = async e => {
+  $$('[data-vf]').forEach(inp => inp.onchange = async e => {
     const f = e.target.files[0]; if (!f) return;
     readOpts();
     if (sess.url) URL.revokeObjectURL(sess.url);
     videoSession[id] = { url: URL.createObjectURL(f), name: f.name };
     if (vv.keep) { if (f.size > 300 * 1048576) toast('Vídeo grande demais para guardar (acima de 300 MB); ele será analisado, mas não guardado.', 5000); else await Store.put('media', { id: 'video:' + id, kind: 'file', blob: f, name: f.name, type: f.type, createdAt: todayISO() }); }
     vv.name = f.name; await Store.put('assessments', a); go('video', { id });
-  };
+  });
 
   let video = null, cw = 0, ch = 0;
   const cv = $('#vcv'), ctx = cv.getContext('2d');

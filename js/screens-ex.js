@@ -27,13 +27,13 @@ async function bindOwnVideo(root, mediaId, label) {
     const med = await mediaURL(mediaId);
     box.innerHTML = `<div class="stack"><div class="row spread"><h3>Seu vídeo explicativo</h3>${med ? '<button class="btn small ghost danger" data-vrm>Remover</button>' : ''}</div>
       ${med ? videoBlock(med) : `<p class="muted" style="margin:0;font-size:.9rem">Grave você mesmo(a) fazendo ${esc(label)} para mostrar ao paciente, ou cole o link de um vídeo seu (YouTube, Instagram, Drive).</p>`}
-      <div class="row"><label class="btn small" style="cursor:pointer">${med?.kind === 'file' ? 'Trocar vídeo' : 'Gravar ou enviar vídeo'}<input type="file" accept="video/*" capture="user" data-vfile hidden></label>
+      <div class="row"><label class="btn small" style="cursor:pointer">📹 Gravar<input type="file" accept="video/*" capture="user" data-vfile hidden></label><label class="btn small" style="cursor:pointer">🖼️ Galeria<input type="file" accept="video/*" data-vfile hidden></label>
         <input class="search" style="min-width:200px" data-vlink placeholder="https://youtu.be/…" value="${med?.kind === 'link' ? esc(med.url) : ''}"><button class="btn small" data-vsave>Salvar link</button></div></div>`;
-    $('[data-vfile]', box).onchange = async e => {
+    $$('[data-vfile]', box).forEach(inp => inp.onchange = async e => {
       const f = e.target.files[0]; if (!f) return;
       if (f.size > 200 * 1048576) return toast('Vídeo acima de 200 MB. Grave um trecho mais curto.', 4000);
       await Store.put('media', { id: mediaId, kind: 'file', blob: f, name: f.name, type: f.type, createdAt: todayISO() }); toast('Vídeo salvo neste aparelho'); draw();
-    };
+    });
     $('[data-vsave]', box).onclick = async () => {
       const u = $('[data-vlink]', box).value.trim();
       if (!/^https?:\/\//.test(u)) return toast('Cole um link que comece com https://');
