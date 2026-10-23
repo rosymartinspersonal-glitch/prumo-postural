@@ -142,6 +142,14 @@ ul.find{margin:0;padding-left:18px;display:grid;gap:4px}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:50;font-size:.9rem;max-width:calc(100% - 32px)}
 .modal{position:fixed;inset:0;background:rgba(10,12,24,.55);display:grid;place-items:center;z-index:40;padding:16px}
 .modal .panel{max-width:440px;width:100%;display:grid;gap:14px}
+.biogrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px 14px}
+.bioblock summary{cursor:pointer;list-style-position:outside}
+.unitin{display:flex;align-items:center;gap:6px}.unitin input{flex:1;min-width:0}.unitin em{font-style:normal;color:var(--muted);font-size:.85rem;min-width:30px}
+.biocalc{color:var(--accent);font-size:.78rem;min-height:0}.biocalc:empty{display:none}
+.biobar{display:flex;height:34px;border-radius:10px;overflow:hidden;font-size:.78rem;font-weight:700;color:#fff}
+.biobar span{display:grid;place-items:center;white-space:nowrap;overflow:hidden}
+.biolegend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:.85rem;color:var(--muted)}.biolegend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.rbio{display:grid;place-items:center;width:100%;height:100%;font-size:1.6rem;background:var(--sunken)}
 .updbar{position:fixed;left:12px;right:12px;bottom:84px;z-index:60;display:flex;gap:10px;align-items:center;justify-content:space-between;background:#0D0D0D;color:#fff;border:1px solid var(--accent);border-radius:12px;padding:10px 12px;box-shadow:0 6px 20px rgba(0,0,0,.35)}
 /* iPhone: campo com letra menor que 16px faz a tela dar zoom e ficar cortada */
 @media (max-width:900px){input,select,textarea{font-size:16px!important}}
@@ -357,6 +365,7 @@ details summary{cursor:pointer}
 <script src="js/billing.js"></script>
 <script src="js/legal.js"></script>
 <script src="js/video.js"></script>
+<script src="js/bio.js"></script>
 <script src="js/pdf.js"></script>
 <script src="js/lock.js"></script>
 <script src="js/main.js"></script>

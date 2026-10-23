@@ -1,7 +1,7 @@
 /* TEAMRM - Posture & Correction — relatório PDF (jsPDF). */
 'use strict';
 
-const pdfSafe = s => String(s ?? '').replace(/≤ ?/g, 'até ').replace(/≥ ?/g, 'mín. ').replace(/[–—]/g, '-').replace(/[✓φ]/g, m => m === 'φ' ? 'phi' : '').replace(/×/g, 'x').replace(/÷/g, '/').replace(/…/g, '...');
+const pdfSafe = s => String(s ?? '').replace(/≤ ?/g, 'até ').replace(/≥ ?/g, 'mín. ').replace(/[–—−]/g, '-').replace(/[✓φ]/g, m => m === 'φ' ? 'phi' : '').replace(/×/g, 'x').replace(/÷/g, '/').replace(/…/g, '...');
 const hexRgb = h => { const m = /^#?([0-9a-f]{6})$/i.exec(h || ''); const n = m ? parseInt(m[1], 16) : 0x1D2A6B; return [n >> 16 & 255, n >> 8 & 255, n & 255]; };
 
 async function exportPDF(a, p) {
@@ -71,7 +71,9 @@ async function exportPDF(a, p) {
     return ty;
   };
 
-  if (K.video) {
+  if (K.bio) {
+    await bioPDF({ doc, a, M, W, y, h2, para, table, need, SC, INK, MUT, getY: () => y, setY: v => { y = v; } });
+  } else if (K.video) {
     const vv = a.video || {};
     if (vv.analysis === 'mov' && vv.series?.p) {
       const R = movementReport(vv), Mv = VMOVES[vv.move];

@@ -166,6 +166,7 @@ SCREENS.patient = async ({ id }) => {
   const series = {};
   for (const a of [...as].reverse()) {
     if (KINDS[kindOf(a)].video) continue;
+    if (KINDS[kindOf(a)].bio) { for (const { m } of allMeasures(a)) { if (m.unit === 'kcal' || m.key === 'bio_osso') continue; (series['bio|' + m.key] ||= { label: m.label + ' · Bioimpedância', unit: m.unit, ok: m.ok, pts: [] }).pts.push({ v: m.v, label: fmtDate(a.date) }); } continue; }
     for (const { slot, m } of allMeasures(a)) {
       const vd = a.views[slot], key = `${kindOf(a)}|${vd?.rom ? 'rom' : slot}|${m.key}`;
       (series[key] ||= { label: `${m.label} · ${slotLabel(a, slot)}`, unit: m.unit, ok: m.ok, pts: [] }).pts.push({ v: m.v, label: fmtDate(a.date) });
@@ -186,8 +187,8 @@ SCREENS.patient = async ({ id }) => {
       const same = as.filter(x => kindOf(x) === kindOf(a));
       return `<div class="prow arow"><span style="min-width:0"><b>${esc(KINDS[kindOf(a)].label)}</b> <span class="muted num" style="font-size:.86rem">· ${fmtDate(a.date)}</span><br><span class="muted" style="font-size:.86rem">${s.text}</span>
         ${s.done && !KINDS[kindOf(a)].video ? `<span class="row" style="gap:6px;margin-top:6px">${bad ? `<span class="st bad">${bad} alterado${bad > 1 ? 's' : ''}</span>` : ''}${warn ? `<span class="st warn">${warn} em atenção</span>` : ''}${!f.length ? '<span class="st ok">Sem achados</span>' : ''}</span>` : ''}</span>
-        <span class="row" style="gap:6px;justify-content:flex-end">${KINDS[kindOf(a)].video ? `<button class="btn small primary" data-video="${a.id}">Abrir análise</button>` : `<button class="btn small" data-open="${a.id}">Fotos e pontos</button><button class="btn small primary" data-res="${a.id}" ${s.done ? '' : 'disabled'}>Resultados</button>`}
-        ${same.length > 1 && !KINDS[kindOf(a)].video ? `<button class="btn small ghost" data-cmp="${a.id}">Comparar</button>` : ''}<button class="btn small ghost danger" data-adel="${a.id}" aria-label="Excluir avaliação de ${fmtDate(a.date)}">🗑 Excluir</button></span></div>`;
+        <span class="row" style="gap:6px;justify-content:flex-end">${KINDS[kindOf(a)].bio ? `<button class="btn small primary" data-bio="${a.id}">Abrir</button>` : KINDS[kindOf(a)].video ? `<button class="btn small primary" data-video="${a.id}">Abrir análise</button>` : `<button class="btn small" data-open="${a.id}">Fotos e pontos</button><button class="btn small primary" data-res="${a.id}" ${s.done ? '' : 'disabled'}>Resultados</button>`}
+        ${same.length > 1 && !KINDS[kindOf(a)].video && !KINDS[kindOf(a)].bio ? `<button class="btn small ghost" data-cmp="${a.id}">Comparar</button>` : ''}<button class="btn small ghost danger" data-adel="${a.id}" aria-label="Excluir avaliação de ${fmtDate(a.date)}">🗑 Excluir</button></span></div>`;
     }).join('')}</div>` : `<div class="panel empty"><h2>Nenhuma avaliação</h2><p class="muted" style="margin:0">Toque em “Nova avaliação” e escolha o tipo de teste.</p></div>`}</div>
     ${evoKeys.length ? `<section class="panel stack"><div class="row spread"><h2>Evolução</h2><label class="f" style="min-width:min(100%,320px)">Medida<select id="evo">${evoKeys.map(k => `<option value="${esc(k)}">${esc(series[k].label)}</option>`).join('')}</select></label></div><div id="evo-chart"></div></section>` : ''}`;
   bindBack('patients');
@@ -202,6 +203,7 @@ SCREENS.patient = async ({ id }) => {
   $$('[data-adel]').forEach(b => b.onclick = () => deleteAssessment(as.find(x => x.id === b.dataset.adel), () => go('patient', { id })));
   $$('[data-res]').forEach(b => b.onclick = () => go('results', { id: b.dataset.res }));
   $$('[data-video]').forEach(b => b.onclick = () => go('video', { id: b.dataset.video }));
+  $$('[data-bio]').forEach(b => b.onclick = () => go('bio', { id: b.dataset.bio }));
   $$('[data-cmp]').forEach(b => b.onclick = () => { const a = as.find(x => x.id === b.dataset.cmp), prev = as.filter(x => kindOf(x) === kindOf(a) && x.date < a.date)[0] || as.filter(x => kindOf(x) === kindOf(a) && x.id !== a.id)[0]; go('compare', { pid: id, a: prev.id, b: a.id }); });
   const drawEvo = () => { const s = series[$('#evo').value]; $('#evo-chart').innerHTML = `<div style="position:relative">${lineChartSVG(s.pts, { okRange: s.ok, unit: s.unit === '°' ? '°' : s.unit === 'cm' ? ' cm' : s.unit === '%' ? '%' : '' })}</div><p class="muted" style="margin:0;font-size:.82rem">Faixa verde: referência de normalidade.</p>`; bindCharts($('#evo-chart')); };
   if (evoKeys.length) { $('#evo').onchange = drawEvo; drawEvo(); }
@@ -229,7 +231,7 @@ function pickKind(pid) {
     if (!Billing.can(await Billing.plan(), b.dataset.k)) return go('plans', { need: b.dataset.k });
     const a = { id: uid(), patientId: pid, kind: b.dataset.k, date: todayISO(), views: {}, order: [], notes: '', conclusion: '', createdAt: todayISO() };
     await Store.put('assessments', a);
-    go(KINDS[a.kind].video ? 'video' : 'assessment', { id: a.id });
+    go(screenOfKind(a.kind), { id: a.id });
   });
 }
 

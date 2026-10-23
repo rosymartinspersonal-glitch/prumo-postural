@@ -60,7 +60,7 @@ async function pickPatient(kind) {
 async function startAssessment(pid, kind) {
   const a = { id: uid(), patientId: pid, kind, date: todayISO(), views: {}, order: [], notes: '', conclusion: '', createdAt: todayISO() };
   await Store.put('assessments', a);
-  go(KINDS[kind].video ? 'video' : 'assessment', { id: a.id });
+  go(screenOfKind(kind), { id: a.id });
 }
 
 /* ---------- banco de resultados ---------- */
@@ -72,6 +72,7 @@ SCREENS.results_db = async () => {
   const rows = [];
   for (const a of as) {
     const k = kindOf(a);
+    if (KINDS[k].bio) { if (+a.bio?.weight > 0) rows.push({ a, k, slot: null, label: 'Composição corporal' + (a.bio.device ? ' · ' + a.bio.device : ''), img: null, size: JSON.stringify(a.bio).length, date: a.date }); continue; }
     if (KINDS[k].video) { if (a.video?.times?.length) rows.push({ a, k, slot: null, label: a.video.analysis === 'mov' ? VMOVES[a.video.move]?.label : 'Ângulos livres', img: a.video.keyframes?.[a.video.keyframes.length - 1]?.img, size: JSON.stringify(a.video).length, date: a.date }); continue; }
     for (const s of slotsOf(a)) { const vd = a.views[s]; if (vd?.img) rows.push({ a, k, slot: s, label: getView(s, vd)?.label || s, img: vd.img, size: vd.img.length * 0.75, date: a.date, ready: viewReady(vd, s) }); }
   }
@@ -81,10 +82,10 @@ SCREENS.results_db = async () => {
     list.sort((x, y) => resFilter.order === 'new' ? y.date.localeCompare(x.date) : x.date.localeCompare(y.date));
     const shown = resFilter.more ? kindsPresent : kindsPresent.slice(0, 3);
     $('#chips').innerHTML = shown.map(k => `<button class="chip" aria-pressed="${resFilter.kinds.has(k)}" data-kf="${k}">${resFilter.kinds.has(k) ? '✓ ' : ''}${esc(KINDS[k].label)}</button>`).join('') + (kindsPresent.length > 3 ? `<button class="chip ghost" id="more">${resFilter.more ? 'Mostrar menos' : `Mostrar mais (+${kindsPresent.length - 3})`}</button>` : '');
-    $('#rlist').innerHTML = list.length ? list.map(r => `<button class="rrow" data-a="${r.a.id}" data-v="${r.k === 'video' ? 1 : 0}"><span class="rthumb">${r.img ? `<img src="${r.img}" alt="" loading="lazy">` : ''}</span><span style="min-width:0"><b>${esc(KINDS[r.k].label)}</b><br><span>${esc(r.label)}</span><br><span class="muted" style="font-size:.82rem">${esc(pName(r.a.patientId))}</span></span><span class="rmeta muted num">${nf(r.size / 1024, 1)} KB<br>${new Date(r.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span></button>`).join('') : `<div class="panel empty"><h2>Nenhum resultado</h2><p class="muted" style="margin:0">As fotos e vídeos analisados aparecem aqui.</p></div>`;
+    $('#rlist').innerHTML = list.length ? list.map(r => `<button class="rrow" data-a="${r.a.id}" data-v="${r.k === 'video' ? 'video' : r.k === 'bio' ? 'bio' : 'results'}"><span class="rthumb">${r.img ? `<img src="${r.img}" alt="" loading="lazy">` : r.k === 'bio' ? '<span class="rbio" aria-hidden="true">⚡</span>' : ''}</span><span style="min-width:0"><b>${esc(KINDS[r.k].label)}</b><br><span>${esc(r.label)}</span><br><span class="muted" style="font-size:.82rem">${esc(pName(r.a.patientId))}</span></span><span class="rmeta muted num">${nf(r.size / 1024, 1)} KB<br>${new Date(r.date).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}</span></button>`).join('') : `<div class="panel empty"><h2>Nenhum resultado</h2><p class="muted" style="margin:0">As fotos e vídeos analisados aparecem aqui.</p></div>`;
     $$('[data-kf]').forEach(b => b.onclick = () => { const k = b.dataset.kf; resFilter.kinds.has(k) ? resFilter.kinds.delete(k) : resFilter.kinds.add(k); draw(); });
     const mo = $('#more'); if (mo) mo.onclick = () => { resFilter.more = !resFilter.more; draw(); };
-    $$('[data-a]').forEach(b => b.onclick = () => go(b.dataset.v === '1' ? 'video' : 'results', { id: b.dataset.a }));
+    $$('[data-a]').forEach(b => b.onclick = () => go(b.dataset.v, { id: b.dataset.a }));
     $$('[data-ord]').forEach(b => b.setAttribute('aria-selected', b.dataset.ord === resFilter.order));
     $('#rcount').textContent = `${list.length} resultado${list.length === 1 ? '' : 's'}`;
   };
