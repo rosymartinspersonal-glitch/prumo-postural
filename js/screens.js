@@ -150,7 +150,7 @@ SCREENS.patients = async () => {
   pts.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
   const byP = {}; for (const a of ass) (byP[a.patientId] ||= []).push(a);
   app.innerHTML = `${Store.persistent ? '' : '<div class="banner warn">Este navegador não permite armazenamento local. Os dados serão perdidos ao fechar a página. Use o backup em Configurações.</div>'}
-    <div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">Consultório · Avaliação</span><h1>Pacientes</h1></div>
+    <div class="row spread"><div class="stack" style="gap:4px"><span class="eyebrow">Consultório · Avaliação postural</span><h1>Pacientes</h1></div>
     <button class="btn primary" id="new-p">+ Novo paciente</button></div>
     <div class="tipday"><span class="eyebrow">Dica do dia</span><p style="margin:4px 0 0">${esc(tipOfDay())}</p></div>
     <input class="search" id="q" type="search" placeholder="Buscar por nome" aria-label="Buscar paciente">
