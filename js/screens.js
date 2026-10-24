@@ -90,8 +90,8 @@ function applyPalette(S) {
 
 /* ---------- navegação ---------- */
 let cleanup = null;
-const NAV = { home: 'nav-home', patients: 'nav-patients', alunos: 'nav-alunos', contratos: 'nav-contratos', results: 'nav-results', settings: 'nav-settings', plans: 'nav-plans' };
-const SECTION = { home: 'home', exercises: 'home', exercise: 'home', workout: 'home', workouts: 'home', results_db: 'results', settings: 'settings', help: 'settings', legal: 'settings', plans: 'plans', alunos: 'alunos', aluno: 'alunos', alunoForm: 'alunos', contratos: 'contratos', pcCliente: 'contratos', pcContrato: 'contratos', pcModelo: 'contratos' };
+const NAV = { home: 'nav-home', patients: 'nav-patients', alunos: 'nav-alunos', contratos: 'nav-contratos', results: 'nav-results', settings: 'nav-settings', plans: 'nav-plans', notificacoes: 'nav-notif' };
+const SECTION = { notificacoes: 'notificacoes', home: 'home', exercises: 'home', exercise: 'home', workout: 'home', workouts: 'home', results_db: 'results', settings: 'settings', help: 'settings', legal: 'settings', plans: 'plans', alunos: 'alunos', aluno: 'alunos', alunoForm: 'alunos', contratos: 'contratos', pcCliente: 'contratos', pcContrato: 'contratos', pcModelo: 'contratos' };
 function go(name, p = {}) {
   if (cleanup) { try { cleanup(); } catch (e) { } cleanup = null; }
   window.scrollTo(0, 0);

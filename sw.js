@@ -1,12 +1,21 @@
 // TEAMRM - Posture & Correction — service worker: funciona offline depois da primeira visita.
-const VERSION = 'teamrm-v57';
-const SHELL = ['./', 'index.html', 'js/config.js', 'js/core.js', 'js/views.js', 'js/detect.js', 'js/draw.js', 'js/photoedit.js', 'js/exercises.js', 'js/anim.js', 'js/content.js', 'js/screens.js', 'js/screens-ex.js', 'js/home.js', 'js/figuras.js', 'js/encurt.js', 'js/encurt-extra.js', 'js/billing.js', 'js/legal.js', 'js/video.js', 'js/bio.js', 'js/alunos.js', 'js/contratos-core.js', 'js/contratos.js', 'js/contratos-pdf.js', 'js/pdf.js', 'js/lock.js', 'js/assinar.js', 'js/main.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'assets/logo.png', 'assets/logo-mark.png', 'assets/favicon.png', 'assets/apple-touch-icon.png'];
+const VERSION = 'teamrm-v58';
+const SHELL = ['./', 'index.html', 'js/config.js', 'js/core.js', 'js/views.js', 'js/detect.js', 'js/draw.js', 'js/photoedit.js', 'js/exercises.js', 'js/anim.js', 'js/content.js', 'js/screens.js', 'js/screens-ex.js', 'js/home.js', 'js/figuras.js', 'js/encurt.js', 'js/encurt-extra.js', 'js/billing.js', 'js/legal.js', 'js/video.js', 'js/bio.js', 'js/alunos.js', 'js/contratos-core.js', 'js/contratos.js', 'js/contratos-pdf.js', 'js/pdf.js', 'js/lock.js', 'js/assinar.js', 'js/notificacoes.js', 'js/main.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png', 'assets/logo.png', 'assets/logo-mark.png', 'assets/favicon.png', 'assets/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(VERSION).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== VERSION).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+});
+// toque no aviso: abre (ou traz para a frente) o app na aba Notificações
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(ws => {
+    const w = ws.find(c => c.url.startsWith(self.registration.scope));
+    if (w) { w.postMessage({ type: 'open', screen: 'notificacoes' }); return w.focus(); }
+    return self.clients.openWindow('./#notificacoes');
+  }));
 });
 self.addEventListener('fetch', e => {
   const req = e.request;
