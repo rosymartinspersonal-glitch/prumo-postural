@@ -85,9 +85,10 @@ SCREENS.plans = async ({ need } = {}) => {
   if (tab === 'free') tab = 'pro';
   let choice = 1;
   const standby = () => {
-    app.innerHTML = `<div class="stack" style="gap:4px"><span class="eyebrow">TEAMRM · Posture & Correction</span><h1>Conta</h1></div>
+    app.innerHTML = `${back('Ajustes')}<div class="stack" style="gap:4px"><span class="eyebrow">Ajustes</span><h1>Conta</h1></div>
       <div class="banner">Todas as funções do app estão liberadas.</div>
       <section class="panel stack" id="acct"></section>`;
+    bindBack('settings', {});
     drawAccount();
   };
   const draw = () => {

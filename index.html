@@ -213,7 +213,7 @@ details summary{cursor:pointer}
 /* Celular: menu vira barra inferior */
 @media (max-width:640px){
   .arow{grid-template-columns:1fr} .arow > .row{justify-content:flex-start!important}
-  .top nav{position:fixed;left:0;right:0;bottom:0;z-index:25;margin:0;background:var(--brand);border-top:2px solid var(--accent);display:grid;grid-template-columns:repeat(8,1fr);gap:0;padding:4px max(4px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(4px,env(safe-area-inset-left,0px));overflow:visible}
+  .top nav{position:fixed;left:0;right:0;bottom:0;z-index:25;margin:0;background:var(--brand);border-top:2px solid var(--accent);display:grid;grid-template-columns:repeat(7,1fr);gap:0;padding:4px max(4px,env(safe-area-inset-right,0px)) calc(4px + env(safe-area-inset-bottom,0px)) max(4px,env(safe-area-inset-left,0px));overflow:visible}
   .top nav button{padding:6px 2px 4px;font-size:.68rem;line-height:1.1;display:grid;justify-items:center;align-content:start;gap:2px;text-align:center;border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .top nav .n2{display:block;font-size:.6rem;opacity:.85} .top nav .nd{display:none} .top nav .hy{display:inline}
   .themebtn{margin-left:auto}
@@ -404,7 +404,6 @@ button.kpi{cursor:pointer}button.kpi:hover{border-color:var(--accent)}
     <span class="brand"><b>TEAMRM</b><small>Posture &amp; Correction</small></span>
   </button>
   <nav>
-    <button id="nav-plans"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M5 21v-1a7 7 0 0 1 14 0v1"/></svg><span id="nav-plans-label">Conta</span></button>
     <button id="nav-home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z"/></svg>Início</button>
     <button id="nav-patients"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-5 15-5 16 0"/></svg><span class="nl">Avaliação<span class="n2"> postural</span></span></button>
     <button id="nav-results"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z M9 11h7 M9 15h7 M9 7h3"/></svg>Resultados</button>

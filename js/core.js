@@ -55,7 +55,7 @@ const Store = (() => {
   };
 })();
 
-const APP_VERSION = '3.15.1';
+const APP_VERSION = '3.15.2';
 let UNITS = 'metric';
 const cmOut = cm => UNITS === 'imperial' ? cm / 2.54 : cm;
 const cmUnit = () => UNITS === 'imperial' ? 'pol' : 'cm';
