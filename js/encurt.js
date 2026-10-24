@@ -185,8 +185,13 @@ for (const k of ['postural', 'adams']) {
   v.splice(i < 0 ? v.length : i, 0, 'encFlexAnt'); v.splice(v.indexOf('adamsPost') + 1, 0, 'encFlexLatD', 'encFlexLatE');
   KINDS[k].views = v;
 }
+// Postura completa: só anterior, posterior, lateral direita, lateral esquerda e flexão anterior (Adams, de costas).
+// Avaliações antigas com foto em outras vistas continuam mostrando essas fotos (ver slotsOf abaixo).
+KINDS.postural.views = ['front', 'back', 'latD', 'latE', 'adamsPost'];
+KINDS.postural.desc = 'Vistas anterior, posterior, lateral direita e lateral esquerda de corpo inteiro e flexão anterior de tronco (teste de Adams), com ângulos, desvios e classificação postural.';
+VIEWS.adamsPost.label = 'Flexão anterior (Adams) — vista posterior';
 KINDS.adams.desc = 'Flexão anterior em pé: vista anterior, vista posterior (teste de Adams, rotação do tronco) e vistas laterais direita e esquerda (flexibilidade da cadeia posterior).';
-{ const base = slotsOf; slotsOf = a => { const s = base(a); return s === KINDS[kindOf(a)].views && a.views?.adamsLat?.img && !s.includes('adamsLat') ? [...s, 'adamsLat'] : s; }; }
+{ const base = slotsOf; slotsOf = a => { const s = base(a); if (s !== KINDS[kindOf(a)].views) return s; const old = ['encFlexAnt', 'encFlexLatD', 'encFlexLatE', 'adamsLat'].filter(x => a.views?.[x]?.img && !s.includes(x)); return old.length ? [...s, ...old] : s; }; }
 
 KINDS.encurt = {
   label: 'Testes de encurtamento', icon: 'E',

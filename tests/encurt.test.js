@@ -2,7 +2,7 @@
 const assert = require('assert'), vm = require('vm'), fs = require('fs'), path = require('path');
 const ctx = { console, Math, Number, String, JSON }; vm.createContext(ctx);
 const src = f => fs.readFileSync(path.join(__dirname, '..', 'js', f), 'utf8');
-vm.runInContext(src('core.js') + '\n' + src('views.js') + '\n' + src('figuras.js') + '\n' + src('encurt.js') + ';this.VIEWS=VIEWS;this.KINDS=KINDS;this.REF_ART=REF_ART;this.tplPoints=tplPoints;this.explain=explain;', ctx);
+vm.runInContext(src('core.js') + '\n' + src('views.js') + '\n' + src('figuras.js') + '\n' + src('encurt.js') + ';this.VIEWS=VIEWS;this.KINDS=KINDS;this.REF_ART=REF_ART;this.tplPoints=tplPoints;this.explain=explain;this.slotsOf=slotsOf;', ctx);
 const { VIEWS, KINDS, REF_ART, tplPoints, explain } = ctx;
 const K = KINDS.encurt;
 assert.equal(K.views.length, 18);
@@ -68,3 +68,12 @@ console.log('encurtamentos: faixas e direito × esquerdo conferidos');
   const m = c3.VIEWS.encSlrE.measures(P).find(x => x.key === 'encSlr'); assert(m.v > 70 && m.v < 90, 'SLR ' + m.v);
 }
 console.log('encurtamentos: escolha da perna pela IA conferida');
+
+// postura completa: só 5 vistas; fotos antigas em vistas retiradas continuam aparecendo
+{
+  assert.deepStrictEqual(Array.from(KINDS.postural.views), ['front', 'back', 'latD', 'latE', 'adamsPost']);
+  const old = { kind: 'postural', views: { front: { img: 'x' }, encFlexLatD: { img: 'y' } } };
+  assert.deepStrictEqual(Array.from(ctx.slotsOf(old)), ['front', 'back', 'latD', 'latE', 'adamsPost', 'encFlexLatD']);
+  assert.deepStrictEqual(Array.from(ctx.slotsOf({ kind: 'postural', views: {} })), ['front', 'back', 'latD', 'latE', 'adamsPost']);
+  console.log('encurtamentos: postura completa com 5 vistas');
+}
